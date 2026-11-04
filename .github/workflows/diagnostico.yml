@@ -2,6 +2,8 @@ name: Diagnóstico
 
 on:
   workflow_dispatch:
+  push:
+    branches: [claude/apk-download-request-wjf5m3]
 
 permissions:
   contents: read
