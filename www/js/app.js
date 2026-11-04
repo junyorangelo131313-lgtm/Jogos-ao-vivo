@@ -47,7 +47,7 @@ const minKey = (a, b) => (a < b ? a : b);
 async function refreshAgenda() {
   const { today, tomorrow } = todayTomorrow(new Date());
   const lastDay = addDays(today, CAL_DAYS - 1);
-  const { matches: fresh, failed, errors } = await loadLeagues(LEAGUES, addDays(today, -1), addDays(lastDay, 1));
+  const { matches: fresh, failed, errors } = await loadLeagues(LEAGUES, addDays(today, -1), lastDay); // a ESPN usa o dia dos EUA: o "ontem" de lá tem jogos da madrugada de hoje em Portugal
   if (failed.length === LEAGUES.length) {
     const why = Object.values(errors)[0] || '';
     throw new Error(`Não foi possível ligar ao servidor dos jogos${why ? ` (${why})` : ''}.`);

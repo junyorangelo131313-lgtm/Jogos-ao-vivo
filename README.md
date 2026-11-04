@@ -1,7 +1,14 @@
 # Jogos ao Vivo ⚽
 
-App Android simples com os jogos do Brasileirão, Premier League, Bundesliga e dos campeonatos
-Italiano, Espanhol, Português e Argentino, com:
+App Android simples com os jogos destas competições:
+
+- **Ligas:** Brasileirão, Premier League, Campeonato Espanhol, Italiano, Bundesliga,
+  Campeonato Francês, Português e Argentino;
+- **Taças de clubes:** Champions League, Liga Europa, Libertadores, Copa Sul-Americana e Copa do Brasil;
+- **Seleções:** Liga das Nações (UEFA), Eliminatórias da América do Sul, Copa América, Copa do Mundo
+  e amistosos das seleções da América do Sul (Brasil, Argentina, Uruguai, etc.).
+
+A lista fica em `www/js/leagues.js`. O app mostra:
 
 - separador **Ao vivo e hoje**: secção **AO VIVO** no topo (placar e minuto) e os jogos de hoje e
   amanhã; sem jogo a decorrer, mostra qual é o próximo;
@@ -20,8 +27,8 @@ O APK é gerado automaticamente pelo GitHub sempre que o código muda.
 
 | O quê | Fonte | Precisa de chave? |
 |---|---|---|
-| Jogos, placares e minuto ao vivo (os 7 campeonatos) | ESPN (dados públicos) | Não |
-| Reserva, se a ESPN falhar (6 campeonatos, **sem o Argentino**) | football-data.org, plano grátis | Sim (opcional) |
+| Jogos, placares e minuto ao vivo (todas as competições) | ESPN (dados públicos) | Não |
+| Reserva, se a ESPN falhar (só Brasileirão, Champions, 6 ligas europeias e Copa do Mundo) | football-data.org, plano grátis | Sim (opcional) |
 | Canais de TV do Brasil | futebolnatv.com.br | Não |
 
 **Porque não a API-Football?** O plano grátis da API-Football só libera **temporadas antigas**
@@ -30,12 +37,15 @@ Por isso foi trocada.
 
 **O que fica de fora / limitações:**
 - A ESPN não é uma API oficial: é grátis e completa, mas um dia pode mudar. Se isso acontecer,
-  o app passa sozinho para o football-data.org (se tiver a chave) — **exceto o Argentino**,
-  que no football-data.org grátis não existe.
+  o app passa sozinho para o football-data.org (se tiver a chave), mas só para as competições
+  que o plano grátis tem (ficam de fora Argentino, Liga Europa, taças sul-americanas, Copa do Brasil
+  e jogos de seleções, exceto a Copa do Mundo).
+- Desde novembro de 2026 a ESPN não aceita pedir vários dias de uma vez; o app pede **dia a dia**
+  (no máximo 8 pedidos ao mesmo tempo). Por isso a primeira atualização pode levar alguns segundos.
 - No football-data.org grátis o placar ao vivo chega **com atraso** e às vezes sem o minuto.
 - Os canais vêm de um site que não tem API. Se o site mudar o layout, aparece
   "canal a confirmar" até o app ser ajustado. Os jogos e horários continuam a funcionar.
-- Só entram os campeonatos da lista (não entram Copa do Brasil, Libertadores, Série B, etc.).
+- Só entram as competições da lista (não entram Série B, Liga Conferência, etc.).
   Se o Santos jogar noutra competição, não aparece.
 
 **Quantas consultas faz:** a agenda é guardada no telemóvel e atualizada no máximo a cada

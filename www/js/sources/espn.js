@@ -2,6 +2,7 @@
 // Campeonato Argentino e o minuto do jogo ao vivo).
 import { getJson } from '../http.js';
 import { addDays } from '../time.js';
+import { keepMatch } from '../leagues.js';
 
 const BASE = 'https://site.api.espn.com/apis/site/v2/sports/soccer';
 
@@ -59,11 +60,25 @@ export function parseEspn(data, league) {
       channels: [],
     });
   }
-  return out;
+  return out.filter((m) => keepMatch(league, m));
+}
+
+// Limite de pedidos ao mesmo tempo (para todas as competições juntas),
+// para não sobrecarregar o telemóvel nem a ESPN.
+const MAX_PARALLEL = 8;
+let running = 0;
+const waiting = [];
+async function limited(fn) {
+  if (running >= MAX_PARALLEL) await new Promise((r) => waiting.push(r));
+  running += 1;
+  try { return await fn(); } finally {
+    running -= 1;
+    waiting.shift()?.();
+  }
 }
 
 async function getEvents(url) {
-  const data = await getJson(url);
+  const data = await limited(() => getJson(url));
   if (!Array.isArray(data?.events)) throw new Error(data?.message ? `ESPN: ${data.message}` : 'resposta sem jogos');
   return data;
 }
@@ -83,7 +98,7 @@ async function fetchDay(league, key) {
 // Por isso tentamos o período uma vez (é mais rápido se voltar a funcionar) e,
 // se falhar, pedimos dia a dia, poucos de cada vez.
 let rangeWorks = true;
-const PARALLEL_DAYS = 4;
+const PARALLEL_DAYS = 16; // o limite real é o MAX_PARALLEL acima
 
 export async function fetchEspn(league, fromKey, toKey) {
   if (fromKey === toKey) return fetchDay(league, fromKey);
