@@ -123,6 +123,19 @@ chega por e-mail. Cole-a no Secret `FOOTBALL_DATA_KEY`.
 
 ## 5. Gerar e baixar o APK
 
+### O jeito mais fácil (link direto, serve no celular e no tablet)
+
+Abra no navegador do aparelho:
+
+**https://github.com/junyorangelo131313-lgtm/Jogos-ao-vivo/releases/latest/download/JogosAoVivo.apk**
+
+O APK baixa logo, sem `.zip` e sem precisar de conta no GitHub. O link é sempre o mesmo e
+aponta para a última versão compilada (a página com os detalhes fica em **Releases**, à direita
+na página do repositório). Este link é público: se cadastrou o Secret `FOOTBALL_DATA_KEY`,
+essa chave vai dentro do APK (ver o aviso no passo 2).
+
+### Pelo separador Actions (alternativa)
+
 1. No repositório, clique no separador **Actions**.
 2. À esquerda, clique em **Gerar APK**.
 3. Para gerar agora: botão **Run workflow** → escolha o ramo → **Run workflow**.

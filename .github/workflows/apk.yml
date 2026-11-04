@@ -5,7 +5,12 @@ on:
   workflow_dispatch: # permite gerar o APK à mão, no botão "Run workflow"
 
 permissions:
-  contents: read
+  contents: write # necessário para publicar o APK na página "Releases"
+
+# Se houver duas compilações ao mesmo tempo, fica só a mais recente.
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   apk:
@@ -91,6 +96,26 @@ jobs:
           name: ${{ steps.out.outputs.name }}
           path: saida/*.apk
           retention-days: 90
+
+      - name: Copiar com nome fixo (para o link direto)
+        run: cp saida/*.apk JogosAoVivo.apk
+
+      # Link fixo e público, que abre em qualquer navegador (também no celular, sem conta):
+      # https://github.com/<dono>/<repo>/releases/latest/download/JogosAoVivo.apk
+      - name: Publicar o APK em "Releases" (link direto)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk
+          name: Jogos ao Vivo (última versão)
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          files: JogosAoVivo.apk
+          body: |
+            Versão ${{ github.run_number }} — ramo `${{ github.ref_name }}`, commit ${{ github.sha }}.
+
+            Para instalar no Android: toque em **JogosAoVivo.apk** em baixo e, se o telemóvel pedir,
+            permita "Instalar apps desconhecidas".
+            ${{ steps.sign.outputs.signed == 'true' && 'APK assinado: instala por cima da versão anterior.' || '⚠️ APK de TESTE (sem assinatura oficial): desinstale a versão anterior antes de instalar.' }}
 
       - name: Apagar a chave do servidor
         if: always()
