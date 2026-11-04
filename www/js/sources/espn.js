@@ -4,9 +4,10 @@ import { getJson } from '../http.js';
 
 const BASE = 'https://site.api.espn.com/apis/site/v2/sports/soccer';
 
-export function espnUrl(league, fromKey, toKey) {
+export function espnUrl(league, fromKey, toKey, localized = true) {
   const d = (k) => k.replaceAll('-', '');
-  return `${BASE}/${league.espn}/scoreboard?dates=${d(fromKey)}-${d(toKey)}&limit=300&lang=pt&region=br`;
+  const lang = localized ? '&lang=pt&region=br' : '';
+  return `${BASE}/${league.espn}/scoreboard?dates=${d(fromKey)}-${d(toKey)}&limit=500${lang}`;
 }
 
 function team(c) {
@@ -52,6 +53,18 @@ export function parseEspn(data, league) {
 }
 
 export async function fetchEspn(league, fromKey, toKey) {
-  const data = await getJson(espnUrl(league, fromKey, toKey));
-  return parseEspn(data, league);
+  let first;
+  try {
+    const data = await getJson(espnUrl(league, fromKey, toKey));
+    if (Array.isArray(data?.events)) return parseEspn(data, league);
+    first = new Error('resposta sem jogos');
+  } catch (e) {
+    first = e;
+  }
+  // Segunda tentativa sem idioma/região (a ESPN às vezes rejeita esses parâmetros).
+  try {
+    const data = await getJson(espnUrl(league, fromKey, toKey, false));
+    if (Array.isArray(data?.events)) return parseEspn(data, league);
+  } catch { /* fica o primeiro erro, que é o mais útil */ }
+  throw first;
 }

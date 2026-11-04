@@ -1,5 +1,5 @@
 // Guarda a agenda no próprio telemóvel, para abrir na hora e gastar poucos pedidos.
-const KEY = 'jogos-ao-vivo:v1';
+const KEY = 'jogos-ao-vivo:v2';
 
 export function load() {
   try {

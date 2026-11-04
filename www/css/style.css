@@ -1,3 +1,5 @@
+/* Cores: tema escuro por defeito; tema claro quando o telemóvel está em modo claro
+   (opção "Automático") ou quando se escolhe "Claro". */
 :root {
   --bg: #0d1117;
   --card: #161b22;
@@ -6,9 +8,44 @@
   --muted: #9aa4af;
   --live: #ff4d4f;
   --santos: #f5c518;
+  --santos-bg: rgba(245, 197, 24, .12);
+  --santos-text: #ffffff;
   --accent: #58a6ff;
+  --on-accent: #0d1117;
+  color-scheme: dark;
   font-size: 20px;
 }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f6f8fa;
+    --card: #ffffff;
+    --line: #d0d7de;
+    --text: #1f2328;
+    --muted: #59636e;
+    --live: #cf222e;
+    --santos: #b88700;
+    --santos-bg: rgba(212, 167, 44, .18);
+    --santos-text: #1f2328;
+    --accent: #0969da;
+    --on-accent: #ffffff;
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f6f8fa;
+  --card: #ffffff;
+  --line: #d0d7de;
+  --text: #1f2328;
+  --muted: #59636e;
+  --live: #cf222e;
+  --santos: #b88700;
+  --santos-bg: rgba(212, 167, 44, .18);
+  --santos-text: #1f2328;
+  --accent: #0969da;
+  --on-accent: #ffffff;
+  color-scheme: light;
+}
+
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text); }
 body {
@@ -17,9 +54,22 @@ body {
   padding: env(safe-area-inset-top) 16px calc(16px + env(safe-area-inset-bottom));
   -webkit-text-size-adjust: 100%;
 }
+button { font: inherit; color: inherit; cursor: pointer; }
 header { padding: 18px 0 6px; }
 h1 { margin: 0; font-size: 1.6rem; }
 .sub { margin: 2px 0 0; color: var(--muted); font-size: .85rem; }
+.muted { color: var(--muted); }
+
+/* Tema */
+.theme { display: flex; gap: 0; margin: 12px 0 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.theme-opt { flex: 1; background: var(--card); border: 0; border-right: 1px solid var(--line); padding: 8px 4px; font-size: .75rem; color: var(--muted); }
+.theme-opt:last-child { border-right: 0; }
+.theme-opt[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); font-weight: 700; }
+
+/* Separadores */
+.tabs { display: flex; gap: 8px; margin: 14px 0 0; }
+.tab { flex: 1; background: var(--card); border: 2px solid var(--line); border-radius: 12px; padding: 12px 6px; font-size: .9rem; font-weight: 700; }
+.tab[aria-selected="true"] { border-color: var(--accent); color: var(--accent); }
 
 /* AO VIVO */
 #live { margin: 14px 0 8px; }
@@ -30,9 +80,27 @@ h1 { margin: 0; font-size: 1.6rem; }
 .live-top { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: .8rem; }
 .minute { color: var(--live); font-weight: 700; font-size: 1rem; }
 .live-card .teams { font-size: 1.15rem; margin: 4px 0; }
+.next { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin: 0; font-size: .9rem; }
+
+/* Calendário */
+.chips { display: flex; gap: 8px; overflow-x: auto; padding: 14px 2px 6px; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
+.chip {
+  flex: 0 0 auto; scroll-snap-align: center; min-width: 4.6rem;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  background: var(--card); border: 2px solid var(--line); border-radius: 12px; padding: 8px 10px;
+}
+.chip.on { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
+.chip.has-santos { box-shadow: inset 0 -4px 0 var(--santos); }
+.chip-wd { font-weight: 700; font-size: .85rem; }
+.chip-date { font-size: .8rem; }
+.chip-n { font-size: .65rem; opacity: .8; }
+.santos-box { background: var(--santos-bg); border-left: 6px solid var(--santos); border-radius: 10px; padding: 10px 12px; margin: 14px 0 0; }
+.santos-box h3 { margin: 0 0 6px; font-size: 1rem; }
+.santos-line { font-size: .9rem; padding: 3px 0; }
+.note { color: var(--muted); font-size: .8rem; font-style: italic; }
 
 /* Lista */
-.day { margin: 26px 0 4px; font-size: 1.4rem; border-bottom: 2px solid var(--line); padding-bottom: 6px; }
+.day { margin: 22px 0 4px; font-size: 1.4rem; border-bottom: 2px solid var(--line); padding-bottom: 6px; }
 .day small { color: var(--muted); font-weight: 400; font-size: .9rem; }
 .league h3 { margin: 18px 0 6px; font-size: 1.05rem; color: var(--accent); text-transform: uppercase; letter-spacing: .04em; }
 .row { display: flex; gap: 12px; align-items: flex-start; padding: 10px 4px; border-bottom: 1px solid var(--line); }
@@ -47,18 +115,19 @@ h1 { margin: 0; font-size: 1.6rem; }
 .row.done { opacity: .6; }
 
 /* Santos sempre em destaque */
-.santos { background: rgba(245, 197, 24, .12); border-left: 6px solid var(--santos); border-radius: 8px; }
+.santos { background: var(--santos-bg); border-left: 6px solid var(--santos); border-radius: 8px; }
 .row.santos { padding-left: 10px; opacity: 1; }
 .live-card.santos { border-color: var(--santos); }
-.santos .teams { font-weight: 700; color: #fff; }
+.santos .teams { font-weight: 700; color: var(--santos-text); }
 .star { color: var(--santos); margin-right: .3em; }
 
 .empty { color: var(--muted); margin: 8px 0; }
+.error { color: var(--live); font-size: .85rem; }
 
 footer { margin-top: 28px; text-align: center; }
-#status { color: var(--muted); font-size: .8rem; min-height: 1.2em; }
+#status { color: var(--muted); font-size: .8rem; min-height: 1.2em; overflow-wrap: anywhere; }
 #refresh {
-  font: inherit; font-size: 1rem; color: var(--text); background: var(--card);
+  font-size: 1rem; background: var(--card);
   border: 1px solid var(--line); border-radius: 12px; padding: 12px 28px; margin-bottom: 8px;
 }
 #refresh:disabled { opacity: .5; }

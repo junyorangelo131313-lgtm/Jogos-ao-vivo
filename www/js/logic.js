@@ -1,4 +1,5 @@
 // Regras do app que não dependem da tela (testadas em tests/).
+import { addDays } from './time.js';
 const LIVE_WINDOW_MS = 150 * 60 * 1000; // um jogo dura ~2h com intervalo e acréscimos
 
 export const isSantos = (m) => [m.home.name, m.away.name].some((n) => /\bsantos\b/i.test(n) && !/laguna/i.test(n));
@@ -34,4 +35,9 @@ export function nextLiveDelay(matches, lastLiveFetch, interval, now = Date.now()
   if (!upcoming.length) return null;
   // Acorda 2 minutos depois do próximo início.
   return Math.min(...upcoming) + 2 * 60 * 1000;
+}
+
+/** Lista de dias (AAAA-MM-DD) do calendário, a começar em `first`. */
+export function calendarDays(first, n) {
+  return Array.from({ length: n }, (_, i) => addDays(first, i));
 }

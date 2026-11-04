@@ -119,3 +119,30 @@ test('atualização ao vivo mantém os canais', () => {
   const merged = mergeLive(old, [{ id: 'x', state: 'live', score: { home: 1, away: 0 }, minute: "12'" }]);
   assert.deepEqual(merged[0], { id: 'x', state: 'live', score: { home: 1, away: 0 }, minute: "12'", channels: ['Globo'] });
 });
+
+test('calendário: dias seguidos e dia da semana', async () => {
+  const { calendarDays } = await import('../www/js/logic.js');
+  const { weekday } = await import('../www/js/time.js');
+  const days = calendarDays('2026-11-04', 14);
+  assert.equal(days.length, 14);
+  assert.equal(days[0], '2026-11-04');
+  assert.equal(days[13], '2026-11-17');
+  assert.equal(weekday('2026-11-04'), 'Qua');
+  assert.equal(weekday('2026-11-08'), 'Dom');
+});
+
+test('respostas da internet: aceita texto JSON ou objeto já lido', async () => {
+  const { parseJsonBody } = await import('../www/js/http.js');
+  assert.deepEqual(parseJsonBody('{"events":[]}'), { events: [] });
+  assert.deepEqual(parseJsonBody({ events: [1] }), { events: [1] });
+  assert.throws(() => parseJsonBody(''), /vazia/);
+  assert.throws(() => parseJsonBody('<html>'), /inválida/);
+});
+
+test('URL da ESPN cobre o período do calendário', async () => {
+  const { espnUrl } = await import('../www/js/sources/espn.js');
+  const u = espnUrl(LEAGUES[0], '2026-11-03', '2026-11-18');
+  assert.match(u, /bra\.1\/scoreboard\?dates=20261103-20261118/);
+  assert.match(u, /lang=pt/);
+  assert.doesNotMatch(espnUrl(LEAGUES[0], '2026-11-03', '2026-11-18', false), /lang=/);
+});

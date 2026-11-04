@@ -38,3 +38,11 @@ export function shortDate(key) {
   const [, m, d] = key.split('-');
   return `${d}/${m}`;
 }
+
+const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+/** Dia da semana abreviado ("Qua") de uma chave AAAA-MM-DD. */
+export function weekday(key) {
+  const [y, m, d] = key.split('-').map(Number);
+  return WEEKDAYS[new Date(Date.UTC(y, m - 1, d, 12)).getUTCDay()];
+}

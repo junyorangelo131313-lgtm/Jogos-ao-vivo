@@ -1,12 +1,16 @@
 # Jogos ao Vivo ⚽
 
-App Android simples: mostra os jogos de **hoje e amanhã** do Brasileirão, Premier League,
-Bundesliga e dos campeonatos Italiano, Espanhol, Português e Argentino, com:
+App Android simples com os jogos do Brasileirão, Premier League, Bundesliga e dos campeonatos
+Italiano, Espanhol, Português e Argentino, com:
 
+- separador **Ao vivo e hoje**: secção **AO VIVO** no topo (placar e minuto) e os jogos de hoje e
+  amanhã; sem jogo a decorrer, mostra qual é o próximo;
+- separador **Calendário**: os próximos **14 dias**, um botão por dia, com o número de jogos;
 - **horário de Portugal** (muda sozinho no horário de verão);
-- **canal de TV do Brasil** (ou "canal a confirmar");
-- secção **AO VIVO** no topo, com placar e minuto;
-- jogos do **Santos sempre em destaque** (fundo dourado e ★).
+- **canal de TV do Brasil** em hoje e amanhã (ou "canal a confirmar"); o site dos canais só
+  publica a véspera, por isso os dias mais à frente aparecem sem canal;
+- jogos do **Santos sempre em destaque** (fundo dourado e ★) e caixa "Próximos jogos do Santos";
+- tema da tela **Automático** (segue o telemóvel), **Escuro** ou **Claro**; a escolha fica guardada.
 
 O APK é gerado automaticamente pelo GitHub sempre que o código muda.
 
@@ -36,7 +40,9 @@ Por isso foi trocada.
 
 **Quantas consultas faz:** a agenda é guardada no telemóvel e atualizada no máximo a cada
 4 horas (≈ 6 vezes por dia). O placar ao vivo é atualizado de 10 em 10 minutos, **só com o app
-aberto e só quando há jogo a decorrer**. O botão "Atualizar" não deixa repetir em menos de 10 minutos.
+aberto e só quando há jogo a decorrer**. O botão "Atualizar" não deixa repetir em menos de 2 minutos
+(a não ser que a última tentativa tenha dado erro). Se um campeonato falhar, o motivo aparece em
+baixo, junto de "Sem dados agora".
 
 ---
 
