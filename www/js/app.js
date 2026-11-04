@@ -16,7 +16,8 @@ let state = store.load();
 let busy = false;
 let liveTimer = null;
 let message = '';
-let view = 'hoje';         // 'hoje' | 'calendario'
+let view = 'aovivo';       // 'aovivo' | 'campeonatos' | 'calendario'
+let selectedLeague = null; // campeonato aberto no separador Campeonatos
 let selectedDay = null;    // dia escolhido no calendário
 
 const $ = (sel) => document.querySelector(sel);
@@ -155,55 +156,51 @@ function teams(m) {
   return `${isSantos(m) ? '<span class="star">★</span>' : ''}${esc(m.home.name)} ${scoreOrX(m)} ${esc(m.away.name)}`;
 }
 
+const nearDays = (now) => { const { today, tomorrow } = todayTomorrow(new Date(now)); return [today, tomorrow]; };
+
+function dayLabel(d, now) {
+  const [today, tomorrow] = nearDays(now);
+  return d === today ? 'Hoje' : d === tomorrow ? 'Amanhã' : weekday(d);
+}
+
+function leagueTag(key) {
+  const l = leagueByKey(key);
+  return `<span class="tag" style="--c:${l?.color || 'var(--accent)'}">${esc(l?.name)}</span>`;
+}
+
 function liveCard(m) {
   return `
-    <div class="live-card${isSantos(m) ? ' santos' : ''}">
-      <div class="live-top"><span>${esc(leagueByKey(m.league)?.name)}</span>
-        <span class="minute">${esc(m.minute || 'A começar')}</span></div>
-      <div class="teams">${teams(m)}</div>
+    <div class="live-card${isSantos(m) ? ' santos' : ''}" style="--c:${leagueByKey(m.league)?.color || 'var(--accent)'}">
+      <div class="live-top">${leagueTag(m.league)}<span class="minute"><span class="dot"></span>${esc(m.minute || 'A começar')}</span></div>
+      <div class="teams big">${teams(m)}</div>
       <div class="channel">${esc(channelText(m))}</div>
     </div>`;
 }
 
-function row(m, now, { showTbc = true, showLeague = false } = {}) {
+function row(m, now, { showTbc = true, showLeague = false, showDay = false } = {}) {
   const live = isLiveish(m, now);
   const time = m.state === 'done' ? 'Fim' : live ? 'AO VIVO' : hhmm(new Date(m.start));
   const ch = channelText(m, showTbc);
-  const extra = [showLeague ? leagueByKey(m.league)?.name : '', ch].filter(Boolean).join(' · ');
+  const d = dayKey(new Date(m.start));
   return `
-    <div class="row${isSantos(m) ? ' santos' : ''}${m.state === 'done' ? ' done' : ''}">
-      <div class="time${live ? ' is-live' : ''}">${esc(time)}</div>
+    <div class="row${isSantos(m) ? ' santos' : ''}${m.state === 'done' ? ' done' : ''}${live ? ' live' : ''}">
+      <div class="time${live ? ' is-live' : ''}">${showDay && !live && m.state !== 'done' ? `<small>${esc(dayLabel(d, now))}</small>` : ''}${esc(time)}</div>
       <div class="info">
         <div class="teams">${teams(m)}</div>
-        ${extra ? `<div class="channel${m.channels?.length ? '' : ' tbc'}">${esc(extra)}</div>` : ''}
+        ${showLeague || ch ? `<div class="channel${m.channels?.length ? '' : ' tbc'}">${showLeague ? leagueTag(m.league) : ''}${esc(ch)}</div>` : ''}
       </div>
     </div>`;
 }
 
 function leaguesOfDay(key, now, opts) {
   const ofDay = state.matches.filter((m) => dayKey(new Date(m.start)) === key);
-  if (!ofDay.length) return '<p class="empty">Sem jogos destes campeonatos neste dia.</p>';
+  if (!ofDay.length) return '<p class="empty">Sem jogos neste dia.</p>';
   let html = '';
   for (const l of LEAGUES) {
     const list = sortMatches(ofDay.filter((m) => m.league === l.key));
     if (!list.length) continue;
-    html += `<section class="league"><h3>${esc(l.name)}</h3>${list.map((m) => row(m, now, opts)).join('')}</section>`;
-  }
-  return html;
-}
-
-function liveSection(now) {
-  const live = sortMatches(state.matches.filter((m) => isLiveish(m, now)));
-  let html = '<h2 class="live-title"><span class="dot"></span>AO VIVO</h2>';
-  if (live.length) return html + live.map(liveCard).join('');
-  html += '<p class="empty">Nenhum jogo a decorrer agora.</p>';
-  const next = sortMatches(state.matches.filter((m) => m.state === 'pre' && Date.parse(m.start) > now))[0];
-  if (next) {
-    const d = dayKey(new Date(next.start));
-    const { today, tomorrow } = todayTomorrow(new Date(now));
-    const when = d === today ? 'hoje' : d === tomorrow ? 'amanhã' : `${weekday(d)} ${shortDate(d)}`;
-    html += `<p class="next">Próximo: <b>${esc(when)} às ${hhmm(new Date(next.start))}</b> — ${esc(next.home.name)} x ${esc(next.away.name)}
-      <span class="muted">(${esc(leagueByKey(next.league)?.name)})</span></p>`;
+    html += `<section class="league" style="--c:${l.color}"><h3><span class="ldot"></span>${esc(l.name)}</h3>
+      <div class="card">${list.map((m) => row(m, now, opts)).join('')}</div></section>`;
   }
   return html;
 }
@@ -214,21 +211,61 @@ function santosBox(now) {
   return `<section class="santos-box"><h3><span class="star">★</span>Próximos jogos do Santos</h3>
     ${list.map((m) => {
       const d = dayKey(new Date(m.start));
-      return `<div class="santos-line"><b>${esc(weekday(d))} ${shortDate(d)} · ${hhmm(new Date(m.start))}</b>
+      return `<div class="santos-line"><b>${esc(dayLabel(d, now))} ${shortDate(d)} · ${hhmm(new Date(m.start))}</b>
         ${esc(m.home.name)} x ${esc(m.away.name)}${isLiveish(m, now) ? ' <span class="minute">AO VIVO</span>' : ''}</div>`;
     }).join('')}</section>`;
 }
 
-function renderHoje(now) {
-  const { today, tomorrow } = todayTomorrow(new Date(now));
-  return `
-    <section id="live" aria-live="polite">${liveSection(now)}</section>
-    <h2 class="day">Hoje <small>${shortDate(today)}</small></h2>${leaguesOfDay(today, now)}
-    <h2 class="day">Amanhã <small>${shortDate(tomorrow)}</small></h2>${leaguesOfDay(tomorrow, now)}`;
+/* Separador 1: só os jogos ao vivo, em destaque */
+function renderAoVivo(now) {
+  const live = sortMatches(state.matches.filter((m) => isLiveish(m, now)));
+  let html = `<h2 class="section-title live-title"><span class="dot"></span>AO VIVO
+    ${live.length ? `<span class="count">${live.length}</span>` : ''}</h2>`;
+  if (live.length) {
+    html += `<div class="live-list" aria-live="polite">${live.map(liveCard).join('')}</div>`;
+  } else {
+    html += '<div class="card empty-card"><p>Nenhum jogo a decorrer agora.</p></div>';
+  }
+  const next = sortMatches(state.matches.filter((m) => m.state === 'pre' && Date.parse(m.start) > now)).slice(0, 5);
+  if (next.length) {
+    html += `<h2 class="section-title">A seguir</h2>
+      <div class="card">${next.map((m) => row(m, now, { showLeague: true, showDay: true })).join('')}</div>`;
+  }
+  return html + santosBox(now);
 }
 
+/* Separador 2: lista de campeonatos → jogos do campeonato escolhido */
+function renderCampeonatos(now) {
+  if (selectedLeague && leagueByKey(selectedLeague)) {
+    const l = leagueByKey(selectedLeague);
+    const list = sortMatches(state.matches.filter((m) => m.league === l.key));
+    const near = nearDays(now);
+    let html = `<button type="button" class="back" data-back>‹ Todos os campeonatos</button>
+      <h2 class="section-title" style="--c:${l.color}"><span class="ldot big"></span>${esc(l.name)}</h2>`;
+    if (!list.length) return `${html}<div class="card empty-card"><p>Sem jogos nos próximos ${CAL_DAYS} dias.</p></div>`;
+    const days = [...new Set(list.map((m) => dayKey(new Date(m.start))))];
+    for (const d of days) {
+      const ofDay = list.filter((m) => dayKey(new Date(m.start)) === d);
+      html += `<h3 class="day-sub">${esc(dayLabel(d, now))} <small>${shortDate(d)}</small></h3>
+        <div class="card">${ofDay.map((m) => row(m, now, { showTbc: near.includes(d) })).join('')}</div>`;
+    }
+    return html;
+  }
+  const cards = LEAGUES.map((l) => {
+    const ms = state.matches.filter((m) => m.league === l.key);
+    const live = ms.filter((m) => isLiveish(m, now)).length;
+    const info = live ? `<span class="minute"><span class="dot"></span>${live} ao vivo</span>`
+      : ms.length ? `${ms.length} jogo${ms.length > 1 ? 's' : ''}` : 'sem jogos';
+    return `<button type="button" class="league-btn${ms.length ? '' : ' none'}" data-league="${l.key}" style="--c:${l.color}">
+      <span class="ldot"></span><span class="lname">${esc(l.name)}</span><span class="linfo">${info}</span></button>`;
+  }).join('');
+  return `<h2 class="section-title">Campeonatos</h2><p class="hint">Toque num campeonato para ver os jogos dos próximos ${CAL_DAYS} dias.</p>
+    <div class="league-grid">${cards}</div>`;
+}
+
+/* Separador 3: calendário por dia */
 function renderCalendario(now) {
-  const { today, tomorrow } = todayTomorrow(new Date(now));
+  const [today, tomorrow] = nearDays(now);
   const days = calendarDays(today, CAL_DAYS);
   if (!selectedDay || !days.includes(selectedDay)) selectedDay = today;
   const counts = new Map();
@@ -237,18 +274,16 @@ function renderCalendario(now) {
     counts.set(d, (counts.get(d) || 0) + 1);
   }
   const santosDays = new Set(state.matches.filter(isSantos).map((m) => dayKey(new Date(m.start))));
-  const label = (d) => (d === today ? 'Hoje' : d === tomorrow ? 'Amanhã' : weekday(d));
   const chips = days.map((d) => `
     <button type="button" class="chip${d === selectedDay ? ' on' : ''}${santosDays.has(d) ? ' has-santos' : ''}" data-day="${d}">
-      <span class="chip-wd">${esc(label(d))}</span>
+      <span class="chip-wd">${esc(dayLabel(d, now))}</span>
       <span class="chip-date">${shortDate(d)}</span>
       <span class="chip-n">${counts.get(d) ? `${counts.get(d)} jogo${counts.get(d) > 1 ? 's' : ''}` : '—'}</span>
     </button>`).join('');
   const near = [today, tomorrow].includes(selectedDay);
   return `
-    ${santosBox(now)}
     <div class="chips" role="tablist" aria-label="Escolher dia">${chips}</div>
-    <h2 class="day">${esc(label(selectedDay))} <small>${shortDate(selectedDay)}</small></h2>
+    <h2 class="section-title">${esc(dayLabel(selectedDay, now))} <small>${shortDate(selectedDay)}</small></h2>
     ${leaguesOfDay(selectedDay, now, { showTbc: near })}
     ${near ? '' : '<p class="note">Os canais de TV aparecem na véspera do jogo.</p>'}`;
 }
@@ -256,12 +291,16 @@ function renderCalendario(now) {
 function render() {
   const now = Date.now();
   document.querySelectorAll('.tab').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.view === view)));
+  const liveN = state.matches.filter((m) => isLiveish(m, now)).length;
+  const badge = document.querySelector('.tab[data-view="aovivo"] .badge');
+  if (badge) { badge.textContent = liveN || ''; badge.hidden = !liveN; }
 
   if (!state.matches.length && !state.fetchedAt) {
-    $('#content').innerHTML = busy ? '<p class="empty">A carregar os jogos…</p>'
-      : `<p class="empty">Ainda sem dados. Ligue a internet e toque em “Atualizar”.</p>${message ? `<p class="error">${esc(message)}</p>` : ''}`;
+    $('#content').innerHTML = busy ? '<div class="card empty-card"><p>A carregar os jogos…</p></div>'
+      : `<div class="card empty-card"><p>Ainda sem dados. Ligue a internet e toque em “Atualizar”.</p>${message ? `<p class="error">${esc(message)}</p>` : ''}</div>`;
   } else {
-    $('#content').innerHTML = view === 'calendario' ? renderCalendario(now) : renderHoje(now);
+    const views = { aovivo: renderAoVivo, campeonatos: renderCampeonatos, calendario: renderCalendario };
+    $('#content').innerHTML = (views[view] || renderAoVivo)(now);
     const chip = document.querySelector('.chip.on');
     if (chip) chip.scrollIntoView({ block: 'nearest', inline: 'center' });
   }
@@ -286,6 +325,7 @@ $('#refresh').addEventListener('click', () => {
 });
 
 document.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () => {
+  if (b.dataset.view === 'campeonatos' && view === 'campeonatos') selectedLeague = null;
   view = b.dataset.view;
   render();
   window.scrollTo(0, 0);
@@ -293,8 +333,12 @@ document.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () 
 
 $('#content').addEventListener('click', (e) => {
   const chip = e.target.closest('.chip');
-  if (!chip) return;
-  selectedDay = chip.dataset.day;
+  const lg = e.target.closest('.league-btn');
+  const back = e.target.closest('[data-back]');
+  if (chip) selectedDay = chip.dataset.day;
+  else if (lg) { selectedLeague = lg.dataset.league; window.scrollTo(0, 0); }
+  else if (back) selectedLeague = null;
+  else return;
   render();
 });
 

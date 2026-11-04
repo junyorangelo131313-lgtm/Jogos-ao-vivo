@@ -10,9 +10,12 @@ App Android simples com os jogos destas competições:
 
 A lista fica em `www/js/leagues.js`. O app mostra:
 
-- separador **Ao vivo e hoje**: secção **AO VIVO** no topo (placar e minuto) e os jogos de hoje e
-  amanhã; sem jogo a decorrer, mostra qual é o próximo;
+- separador **Ao vivo**: só os jogos a decorrer, em destaque (placar e minuto), e por baixo os
+  próximos 5 jogos;
+- separador **Campeonatos**: um botão por competição (com o número de jogos e quantos estão ao vivo);
+  toque para ver os jogos dessa competição nos próximos 14 dias;
 - separador **Calendário**: os próximos **14 dias**, um botão por dia, com o número de jogos;
+- visual em azul e roxo, cada campeonato com a sua cor;
 - **horário de Portugal** (muda sozinho no horário de verão);
 - **canal de TV do Brasil** em hoje e amanhã (ou "canal a confirmar"); o site dos canais só
   publica a véspera, por isso os dias mais à frente aparecem sem canal;

@@ -3,7 +3,7 @@
   "appName": "Jogos ao Vivo",
   "webDir": "www",
   "android": {
-    "backgroundColor": "#0d1117"
+    "backgroundColor": "#0f1638"
   },
   "plugins": {
     "CapacitorHttp": {

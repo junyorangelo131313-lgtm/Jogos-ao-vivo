@@ -17,7 +17,7 @@ function applyTheme(t) {
   else root.setAttribute('data-theme', t);
   const dark = t === 'dark' || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute('content', dark ? '#0d1117' : '#f6f8fa');
+  if (meta) meta.setAttribute('content', dark ? '#0f1638' : '#eef2ff');
 }
 
 applyTheme(readTheme());
