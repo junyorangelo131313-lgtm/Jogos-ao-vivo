@@ -146,3 +146,11 @@ test('URL da ESPN cobre o período do calendário', async () => {
   assert.match(u, /lang=pt/);
   assert.doesNotMatch(espnUrl(LEAGUES[0], '2026-11-03', '2026-11-18', false), /lang=/);
 });
+
+test('ESPN: URL de um dia e lista de dias do período', async () => {
+  const { espnUrl, daysBetween } = await import('../www/js/sources/espn.js');
+  assert.match(espnUrl(LEAGUES[1], '2026-11-04'), /eng\.1\/scoreboard\?dates=20261104&/);
+  const days = daysBetween('2026-11-03', '2026-11-18');
+  assert.equal(days.length, 16);
+  assert.equal(days.at(-1), '2026-11-18');
+});

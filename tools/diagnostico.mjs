@@ -1,7 +1,7 @@
 // Diagnóstico: corre o mesmo código do app contra os sites reais e mostra o que vem.
 // Uso: node tools/diagnostico.mjs   (é corrido pelo workflow "Diagnóstico")
 import { LEAGUES } from '../www/js/leagues.js';
-import { espnUrl, parseEspn } from '../www/js/sources/espn.js';
+import { espnUrl, parseEspn, fetchEspn } from '../www/js/sources/espn.js';
 import { addDays, todayTomorrow } from '../www/js/time.js';
 
 const UA = 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36';
@@ -47,4 +47,16 @@ for (const u of ['https://www.futebolnatv.com.br/jogos-hoje/', 'https://www.fute
   const r = await probe(u, { Accept: 'text/html' });
   console.log(`\n${u}: ${r.error || `HTTP ${r.status} ${r.type} ${r.len}B ${r.ms}ms`}`);
   if (r.body) console.log(r.body.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 600));
+}
+
+console.log('\n=== Como o app busca (fetchEspn) ===');
+for (const l of LEAGUES) {
+  const t = Date.now();
+  try {
+    const ms = await fetchEspn(l, from, to);
+    const days = new Set(ms.map((m) => m.start.slice(0, 10)));
+    console.log(`${l.name.padEnd(22)} OK ${ms.length} jogos em ${days.size} dias (${Date.now() - t}ms)` + (ms[0] ? ` | ex.: ${ms[0].start} ${ms[0].home.name} x ${ms[0].away.name}` : ''));
+  } catch (e) {
+    console.log(`${l.name.padEnd(22)} FALHOU ${e.message}`);
+  }
 }
