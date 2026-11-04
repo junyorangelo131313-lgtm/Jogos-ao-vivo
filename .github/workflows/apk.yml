@@ -1,0 +1,97 @@
+name: Gerar APK
+
+on:
+  push:
+  workflow_dispatch: # permite gerar o APK à mão, no botão "Run workflow"
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Testes
+        run: npm test
+
+      - name: Criar config.js com a chave da API (vem dos Secrets)
+        env:
+          FOOTBALL_DATA_KEY: ${{ secrets.FOOTBALL_DATA_KEY }}
+        run: |
+          node -e "require('fs').writeFileSync('www/config.js', 'window.APP_CONFIG = ' + JSON.stringify({ footballDataKey: process.env.FOOTBALL_DATA_KEY || '' }) + ';\n')"
+          if [ -z "$FOOTBALL_DATA_KEY" ]; then
+            echo "::notice::Secret FOOTBALL_DATA_KEY não definido: o app funciona só com a ESPN (sem fonte de reserva)."
+          fi
+
+      - name: Copiar o app para o projeto Android
+        run: npx cap sync android
+
+      - name: Preparar a chave de assinatura (vem dos Secrets)
+        id: sign
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            # Tolera quebras de linha e cabeçalhos (ex.: ficheiro gerado no Windows com certutil)
+            printf '%s' "$KEYSTORE_BASE64" | grep -v -- '-----' | tr -d ' \r\n\t' | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Secrets de assinatura em falta. Foi gerado um APK de TESTE (debug), que NÃO atualiza por cima da versão oficial."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Compilar o APK
+        working-directory: android
+        env:
+          APP_VERSION_CODE: ${{ github.run_number }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          if [ "${{ steps.sign.outputs.signed }}" = "true" ]; then
+            ./gradlew --no-daemon assembleRelease
+          else
+            ./gradlew --no-daemon assembleDebug
+          fi
+
+      - name: Dar um nome simples ao APK
+        id: out
+        run: |
+          mkdir -p saida
+          if [ "${{ steps.sign.outputs.signed }}" = "true" ]; then
+            cp android/app/build/outputs/apk/release/app-release.apk "saida/JogosAoVivo-v${{ github.run_number }}.apk"
+            echo "name=JogosAoVivo-APK-v${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+          else
+            cp android/app/build/outputs/apk/debug/app-debug.apk "saida/JogosAoVivo-TESTE-v${{ github.run_number }}.apk"
+            echo "name=JogosAoVivo-TESTE-sem-assinatura-v${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publicar o APK para download
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.out.outputs.name }}
+          path: saida/*.apk
+          retention-days: 90
+
+      - name: Apagar a chave do servidor
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.jks"

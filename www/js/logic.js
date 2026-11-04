@@ -1,0 +1,37 @@
+// Regras do app que não dependem da tela (testadas em tests/).
+const LIVE_WINDOW_MS = 150 * 60 * 1000; // um jogo dura ~2h com intervalo e acréscimos
+
+export const isSantos = (m) => [m.home.name, m.away.name].some((n) => /\bsantos\b/i.test(n) && !/laguna/i.test(n));
+
+/** Jogo a decorrer: a fonte diz "ao vivo", ou já passou da hora e ainda não temos o resultado. */
+export function isLiveish(m, now = Date.now()) {
+  if (m.state === 'live') return true;
+  const t = Date.parse(m.start);
+  return m.state === 'pre' && t <= now && now - t < LIVE_WINDOW_MS;
+}
+
+export function sortMatches(list) {
+  return [...list].sort((a, b) => Date.parse(a.start) - Date.parse(b.start) || a.home.name.localeCompare(b.home.name));
+}
+
+/** Atualiza placar/minuto dos jogos antigos com os dados novos, sem perder os canais. */
+export function mergeLive(oldList, fresh) {
+  const byId = new Map(fresh.map((m) => [m.id, m]));
+  return oldList.map((m) => {
+    const n = byId.get(m.id);
+    return n ? { ...m, state: n.state, score: n.score, minute: n.minute } : m;
+  });
+}
+
+/** Quando fazer a próxima atualização ao vivo (ms a partir de agora), ou null se não houver jogos. */
+export function nextLiveDelay(matches, lastLiveFetch, interval, now = Date.now()) {
+  if (matches.some((m) => isLiveish(m, now))) {
+    return Math.max(0, lastLiveFetch + interval - now);
+  }
+  const upcoming = matches
+    .filter((m) => m.state === 'pre' && Date.parse(m.start) > now)
+    .map((m) => Date.parse(m.start) - now);
+  if (!upcoming.length) return null;
+  // Acorda 2 minutos depois do próximo início.
+  return Math.min(...upcoming) + 2 * 60 * 1000;
+}

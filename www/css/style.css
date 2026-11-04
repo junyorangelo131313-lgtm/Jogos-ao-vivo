@@ -1,0 +1,64 @@
+:root {
+  --bg: #0d1117;
+  --card: #161b22;
+  --line: #30363d;
+  --text: #f0f3f6;
+  --muted: #9aa4af;
+  --live: #ff4d4f;
+  --santos: #f5c518;
+  --accent: #58a6ff;
+  font-size: 20px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.35;
+  padding: env(safe-area-inset-top) 16px calc(16px + env(safe-area-inset-bottom));
+  -webkit-text-size-adjust: 100%;
+}
+header { padding: 18px 0 6px; }
+h1 { margin: 0; font-size: 1.6rem; }
+.sub { margin: 2px 0 0; color: var(--muted); font-size: .85rem; }
+
+/* AO VIVO */
+#live { margin: 14px 0 8px; }
+.live-title { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; font-size: 1.25rem; color: var(--live); letter-spacing: .05em; }
+.dot { width: 14px; height: 14px; border-radius: 50%; background: var(--live); animation: pulse 1.4s infinite; }
+@keyframes pulse { 50% { opacity: .3; } }
+.live-card { background: var(--card); border: 2px solid var(--live); border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; }
+.live-top { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: .8rem; }
+.minute { color: var(--live); font-weight: 700; font-size: 1rem; }
+.live-card .teams { font-size: 1.15rem; margin: 4px 0; }
+
+/* Lista */
+.day { margin: 26px 0 4px; font-size: 1.4rem; border-bottom: 2px solid var(--line); padding-bottom: 6px; }
+.day small { color: var(--muted); font-weight: 400; font-size: .9rem; }
+.league h3 { margin: 18px 0 6px; font-size: 1.05rem; color: var(--accent); text-transform: uppercase; letter-spacing: .04em; }
+.row { display: flex; gap: 12px; align-items: flex-start; padding: 10px 4px; border-bottom: 1px solid var(--line); }
+.time { min-width: 4.2ch; font-weight: 700; font-size: 1.1rem; font-variant-numeric: tabular-nums; }
+.time.is-live { color: var(--live); font-size: .8rem; padding-top: .3em; }
+.info { flex: 1; min-width: 0; }
+.teams { font-size: 1.05rem; overflow-wrap: anywhere; }
+.x { color: var(--muted); padding: 0 .2em; }
+.score { padding: 0 .3em; font-variant-numeric: tabular-nums; }
+.channel { color: var(--muted); font-size: .85rem; margin-top: 2px; }
+.channel.tbc { font-style: italic; }
+.row.done { opacity: .6; }
+
+/* Santos sempre em destaque */
+.santos { background: rgba(245, 197, 24, .12); border-left: 6px solid var(--santos); border-radius: 8px; }
+.row.santos { padding-left: 10px; opacity: 1; }
+.live-card.santos { border-color: var(--santos); }
+.santos .teams { font-weight: 700; color: #fff; }
+.star { color: var(--santos); margin-right: .3em; }
+
+.empty { color: var(--muted); margin: 8px 0; }
+
+footer { margin-top: 28px; text-align: center; }
+#status { color: var(--muted); font-size: .8rem; min-height: 1.2em; }
+#refresh {
+  font: inherit; font-size: 1rem; color: var(--text); background: var(--card);
+  border: 1px solid var(--line); border-radius: 12px; padding: 12px 28px; margin-bottom: 8px;
+}
+#refresh:disabled { opacity: .5; }

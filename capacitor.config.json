@@ -1,0 +1,13 @@
+{
+  "appId": "com.jogosaovivo.app",
+  "appName": "Jogos ao Vivo",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#0d1117"
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
+}
