@@ -39,8 +39,9 @@ jobs:
       - name: Criar config.js com a chave da API (vem dos Secrets)
         env:
           FOOTBALL_DATA_KEY: ${{ secrets.FOOTBALL_DATA_KEY }}
+          APP_VERSION: ${{ github.run_number }}
         run: |
-          node -e "require('fs').writeFileSync('www/config.js', 'window.APP_CONFIG = ' + JSON.stringify({ footballDataKey: process.env.FOOTBALL_DATA_KEY || '' }) + ';\n')"
+          node -e "require('fs').writeFileSync('www/config.js', 'window.APP_CONFIG = ' + JSON.stringify({ footballDataKey: process.env.FOOTBALL_DATA_KEY || '', appVersion: Number(process.env.APP_VERSION) }) + ';\n')"
           if [ -z "$FOOTBALL_DATA_KEY" ]; then
             echo "::notice::Secret FOOTBALL_DATA_KEY não definido: o app funciona só com a ESPN (sem fonte de reserva)."
           fi
@@ -97,8 +98,15 @@ jobs:
           path: saida/*.apk
           retention-days: 90
 
-      - name: Copiar com nome fixo (para o link direto)
-        run: cp saida/*.apk JogosAoVivo.apk
+      - name: Copiar com nome fixo (para o link direto) e criar version.json
+        env:
+          APP_VERSION: ${{ github.run_number }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          cp saida/*.apk JogosAoVivo.apk
+          # O app lê este ficheiro para saber se há uma versão nova para instalar.
+          node -e "require('fs').writeFileSync('version.json', JSON.stringify({ versionCode: Number(process.env.APP_VERSION), builtAt: new Date().toISOString(), notes: (process.env.COMMIT_MSG || '').split('\n')[0] }))"
+          cat version.json
 
       # Link fixo e público, que abre em qualquer navegador (também no celular, sem conta):
       # https://github.com/<dono>/<repo>/releases/latest/download/JogosAoVivo.apk
@@ -109,7 +117,9 @@ jobs:
           name: Jogos ao Vivo (última versão)
           target_commitish: ${{ github.sha }}
           make_latest: true
-          files: JogosAoVivo.apk
+          files: |
+            JogosAoVivo.apk
+            version.json
           body: |
             Versão ${{ github.run_number }} — ramo `${{ github.ref_name }}`, commit ${{ github.sha }}.
 

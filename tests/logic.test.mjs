@@ -182,3 +182,12 @@ test('resultados: pede o placar final de jogos que já acabaram', async () => {
   assert.ok(!needsResult({ ...m, state: 'done' }, now, 0));
   assert.ok(!needsResult(m, Date.parse('2026-11-04T19:00:00Z'), 0));   // ainda a decorrer
 });
+
+test('aviso de versão nova', async () => {
+  const { shouldOffer } = await import('../www/js/update.js');
+  assert.ok(shouldOffer(20, 17, undefined));
+  assert.ok(!shouldOffer(17, 17, undefined));   // já é a mais recente
+  assert.ok(!shouldOffer(20, 17, 20));          // utilizador tocou em "Depois" nesta versão
+  assert.ok(shouldOffer(21, 17, 20));           // saiu outra mais nova: volta a avisar
+  assert.ok(!shouldOffer(20, 0, undefined));    // sem versão (testes no navegador)
+});

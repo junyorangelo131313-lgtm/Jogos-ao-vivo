@@ -224,3 +224,15 @@ footer { margin-top: 24px; text-align: center; }
 .film-text { margin: 4px 0; font-size: .76rem; color: var(--text); opacity: .9;
   display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .film-where { font-size: .72rem; color: var(--accent2); font-weight: 600; }
+
+/* Aviso de versão nova */
+.update {
+  display: flex; align-items: center; gap: 10px; margin: 12px 0 0; padding: 10px 12px; border-radius: 14px;
+  background: linear-gradient(135deg, #16a34a, #0d9488); color: #fff; box-shadow: var(--shadow);
+}
+.update[hidden] { display: none; }
+.update-text { flex: 1; min-width: 0; font-size: .8rem; display: flex; flex-direction: column; gap: 1px; }
+.update-text span { font-size: .7rem; opacity: .9; }
+.update-actions { display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
+.update-go { background: #fff; color: #047857; font-weight: 800; font-size: .8rem; text-decoration: none; text-align: center; border-radius: 10px; padding: 7px 12px; }
+.update-later { background: none; border: 0; color: #fff; opacity: .85; font-size: .7rem; padding: 2px; }
