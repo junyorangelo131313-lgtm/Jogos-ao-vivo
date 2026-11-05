@@ -21,6 +21,8 @@ A lista fica em `www/js/leagues.js`. O app mostra:
   "Filmes", dados do TMDB) e o app descarrega-a no máximo de 12 em 12 horas. Precisa do Secret
   `TMDB_TOKEN` (chave grátis em themoviedb.org);
 - separador **Calendário**: de **ontem** até daqui a 13 dias, um botão por dia, com o número de jogos;
+- **aviso de versão nova**: quando há um APK mais recente, aparece uma faixa verde com o botão
+  "Atualizar" (abre o download no navegador; instala por cima). Verifica no máximo de 6 em 6 horas;
 - visual em azul e roxo, cada campeonato com a sua cor;
 - **horário de Portugal** (muda sozinho no horário de verão);
 - **canal de TV do Brasil** em hoje e amanhã (ou "canal a confirmar"); o site dos canais só

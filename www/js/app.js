@@ -6,6 +6,7 @@ import { fetchChannels } from './channels.js';
 import { calendarDays, isLiveish, isSantos, mergeLive, needsResult, nextLiveDelay, sortMatches } from './logic.js';
 import * as store from './store.js';
 import * as filmes from './filmes.js';
+import * as update from './update.js';
 
 const CAL_DAYS = 14;                       // calendário: hoje + 13 dias
 const AGENDA_MAX_AGE = 4 * 60 * 60 * 1000; // agenda: no máximo ~6 vezes por dia
@@ -433,6 +434,31 @@ document.querySelectorAll('.theme-opt').forEach((b) => b.addEventListener('click
   renderThemeButtons();
 }));
 renderThemeButtons();
+
+/* ---------------- Versão nova do app ---------------- */
+
+async function showUpdateBanner(force = false) {
+  let info = null;
+  try { info = await update.checkUpdate(force); } catch (e) { console.warn('verificar versão', e); }
+  const box = $('#update');
+  if (!box) return;
+  if (!info) { box.hidden = true; box.innerHTML = ''; return; }
+  box.innerHTML = `
+    <div class="update-text"><b>Há uma versão nova do app</b>
+      <span>Versão ${info.versionCode} (tem a ${update.currentVersion()}). Instala por cima, sem perder nada.</span></div>
+    <div class="update-actions">
+      <a class="update-go" href="${update.APK_URL}">Atualizar</a>
+      <button type="button" class="update-later">Depois</button>
+    </div>`;
+  box.hidden = false;
+  box.querySelector('.update-later').addEventListener('click', () => {
+    update.dismiss(info.versionCode);
+    box.hidden = true;
+  });
+}
+
+showUpdateBanner();
+document.addEventListener('visibilitychange', () => { if (!document.hidden) showUpdateBanner(); });
 
 // Redesenha a cada minuto (para um jogo passar a "AO VIVO" na hora certa), sem gastar pedidos.
 setInterval(() => { if (!document.hidden && !busy) render(); }, 60 * 1000);
