@@ -28,14 +28,16 @@ const GENRE_PT = {
 };
 
 // Temas do gosto do utilizador: procurados nos géneros do Wikidata e no resumo da Wikipédia.
+// genre = procura nos géneros (IMDb + Wikidata); text = procura também no resumo da Wikipédia.
 const THEMES = [
-  { tag: 'Roubo', bonus: 1.4, re: /heist|caper|robbery|roubo|assalto|ladr[aã]o|thief|jewel|joia/i },
-  { tag: 'Golpe', bonus: 1.1, re: /con artist|swindl|golpe|golpista|vigarista|scam/i },
-  { tag: 'Hacker', bonus: 1.1, re: /hacker|cyber|ciber|techno-thriller|intelig[eê]ncia artificial|artificial intelligence/i },
-  { tag: 'Espionagem', bonus: 0.9, re: /\bspy\b|espionage|espi[aã]o|espionagem|\bCIA\b|\bMI6\b|secret agent|agente secreto/i },
-  { tag: 'Estratégia', bonus: 0.8, re: /strateg|estrat[eé]gi|xadrez|chess|mastermind|plano perfeito|cat-and-mouse/i },
-  { tag: 'Guerra', bonus: 0.9, re: /\bwar film\b|war drama|guerra|\bwar\b|military|militar|soldad|soldier/i },
+  { tag: 'Roubo', bonus: 1.6, genre: /heist|caper|robbery/i, text: /\bheist\b|robbery|\bassalto\b|\broubo\b|ladr[aã]o de|jewel thief|ladr[oõ]es/i },
+  { tag: 'Golpe', bonus: 1.2, genre: /con artist|swindle/i, text: /con artist|con man|\bgolpe\b|golpista|vigarista|swindler|scam/i },
+  { tag: 'Hacker', bonus: 1.2, genre: /techno-thriller|cyberpunk|hacker/i, text: /\bhacker|cyberattack|ciberataque|intelig[eê]ncia artificial|artificial intelligence/i },
+  { tag: 'Espionagem', bonus: 1.0, genre: /\bspy\b|espionage/i, text: /\bspy\b|espionage|espi[aã]o|espionagem|agente secreto|secret agent/i },
+  { tag: 'Estratégia', bonus: 0.8, genre: /political thriller|legal thriller/i, text: /estrat[eé]gi|strategist|mastermind|cat-and-mouse|gato e rato|xadrez/i },
+  { tag: 'Guerra', bonus: 0.8, genre: /\bwar\b|military/i, text: null },
 ];
+const themesOf = (genres, text) => THEMES.filter((t) => t.genre.test(genres) || (t.text && t.text.test(text)));
 
 // Plataformas de streaming conhecidas (nomes como aparecem no Wikidata → nome mostrado).
 const PLATFORMS = [
@@ -76,25 +78,29 @@ async function imdbCandidates() {
     const kind = TYPES[type];
     if (!kind || adult === '1') continue;
     const year = Number(start);
-    if (!year || year > YEAR || year < YEAR - (kind === 'Série' ? 2 : 1)) continue;
+    if (!year || year > YEAR || year < YEAR - 2) continue;
     const r = ratings.get(id);
     if (!r) continue;
     const [rating, votes] = r;
     const g = genres === '\\N' ? [] : genres.split(',');
     if (!g.some((x) => TASTE.includes(x)) || g.some((x) => EXCLUDE.includes(x))) continue;
-    if (rating < 6.8 || votes < (kind === 'Série' ? 2000 : 4000)) continue;
+    if (rating < 6.8 || votes < (kind === 'Série' ? 4000 : 8000)) continue;
     out.push({ id, kind, title: primary, original, year, rating, votes, genres: g, runtime: minutes === '\\N' ? null : Number(minutes) });
   }
   console.log(`IMDb: ${out.length} candidatos (${YEAR - 2}–${YEAR}, géneros do gosto, nota ≥ 6,8)`);
   return out;
 }
 
+// Nota ajustada pelos votos: poucos votos puxam a nota para a média (evita notas infladas
+// por poucos fãs). Com 30 000 votos a nota conta metade; com 300 000, quase toda.
+function adjusted(x) {
+  const m = 30000, mean = 6.6;
+  return (x.votes / (x.votes + m)) * x.rating + (m / (x.votes + m)) * mean;
+}
 function baseScore(x) {
-  const confidence = Math.min(1, Math.log10(x.votes) / 4.3); // ~20 000 votos = confiança total
-  const recent = x.year === YEAR ? 0.6 : x.year === YEAR - 1 ? 0.3 : 0;
-  const war = x.genres.includes('War') ? 0.5 : 0;
-  const crimeThriller = x.genres.includes('Crime') && x.genres.includes('Thriller') ? 0.4 : 0;
-  return x.rating * confidence + recent + war + crimeThriller;
+  const recent = x.year === YEAR ? 0.5 : x.year === YEAR - 1 ? 0.3 : 0;
+  const crimeThriller = x.genres.includes('Crime') && x.genres.includes('Thriller') ? 0.3 : 0;
+  return adjusted(x) * 1.2 + recent + crimeThriller;
 }
 
 /** 2) Wikidata: título em português, géneros detalhados, plataforma e páginas da Wikipédia. */
@@ -146,18 +152,25 @@ const cleanTitle = (t) => String(t || '').replace(/\s*\((filme|série|serie|mini
 const short = (t, n = 420) => (t.length > n ? `${t.slice(0, n - 3).trim()}…` : t);
 
 async function main() {
-  const cands = (await imdbCandidates()).map((x) => ({ ...x, _base: baseScore(x) })).sort((a, b) => b._base - a._base).slice(0, 80);
+  const cands = (await imdbCandidates()).map((x) => ({ ...x, _base: baseScore(x) })).sort((a, b) => b._base - a._base).slice(0, 240);
   const wd = await wikidata(cands.map((x) => x.id));
 
-  const items = [];
-  for (const x of cands) {
+  // Primeira ordenação só com dados do Wikidata (temas pelos géneros, página em português, plataforma).
+  const nets = (w) => [...new Set(w.nets.map((n) => PLATFORMS.find(([re]) => re.test(n))?.[1]).filter(Boolean))];
+  const pre = cands.map((x) => {
     const w = wd.get(x.id) || { genres: [], nets: [] };
+    const t = themesOf(`${w.genres.join(' ')} ${x.genres.join(' ')}`, '');
+    const local = (w.ptwiki ? 0.5 : 0) + (nets(w).length ? 0.4 : 0);
+    return { x, w, pre: x._base + Math.max(0, ...t.map((y) => y.bonus)) + local };
+  }).sort((a, b) => b.pre - a.pre).slice(0, 70);
+
+  const items = [];
+  for (const { x, w } of pre) {
     const pt = await summary(w.ptwiki);
     const en = pt?.text ? null : await summary(w.enwiki);
     const text = pt?.text || en?.text || '';
-    const hay = `${w.genres.join(' ')} ${text} ${x.genres.join(' ')}`;
-    const themes = THEMES.filter((t) => t.re.test(hay));
-    const nets = [...new Set(w.nets.map((n) => PLATFORMS.find(([re]) => re.test(n))?.[1]).filter(Boolean))];
+    const themes = themesOf(`${w.genres.join(' ')} ${x.genres.join(' ')}`, text);
+    const where = nets(w);
     items.push({
       key: x.id,
       type: x.kind,
@@ -173,18 +186,20 @@ async function main() {
       overview: short(text),
       overviewLang: pt?.text ? 'pt' : en?.text ? 'en' : '',
       poster: pt?.image || en?.image || null,
-      where: nets.length ? { ALL: { stream: nets } } : {},
+      where: where.length ? { ALL: { stream: where } } : {},
       link: `https://www.imdb.com/title/${x.id}/`,
-      _score: x._base + Math.max(0, ...themes.map((t) => t.bonus)),
+      _score: x._base + Math.max(0, ...themes.map((t) => t.bonus)) * (themes.length > 1 ? 1.15 : 1)
+        + (pt?.text ? 0.5 : en?.text ? 0 : -0.6) + (where.length ? 0.4 : 0),
     });
   }
 
-  // Escolha final: os melhores, com variedade (no máximo 8 séries e pelo menos 3 de guerra, se houver).
+  // Escolha final: os melhores, com variedade (no máximo 8 séries; entre 3 e 5 de guerra, se houver).
   items.sort((a, b) => b._score - a._score);
   const chosen = [];
   for (const x of items) {
     if (chosen.length >= TOTAL) break;
     if (x.type === 'Série' && chosen.filter((c) => c.type === 'Série').length >= 8) continue;
+    if (x.tags.includes('Guerra') && chosen.filter((c) => c.tags.includes('Guerra')).length >= 5) continue;
     chosen.push(x);
   }
   for (const x of items) {
