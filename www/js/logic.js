@@ -41,3 +41,12 @@ export function nextLiveDelay(matches, lastLiveFetch, interval, now = Date.now()
 export function calendarDays(first, n) {
   return Array.from({ length: n }, (_, i) => addDays(first, i));
 }
+
+const RESULT_AFTER_MS = 110 * 60 * 1000; // ~ fim do jogo (90' + intervalo + acréscimos)
+
+/** Jogo que já deve ter acabado mas ainda não temos o placar final (ex.: o app estava fechado). */
+export function needsResult(m, now = Date.now(), lastFetch = 0) {
+  if (m.state !== 'pre' && m.state !== 'live') return false;
+  const end = Date.parse(m.start) + RESULT_AFTER_MS;
+  return end < now && lastFetch < end;
+}

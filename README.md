@@ -12,9 +12,10 @@ A lista fica em `www/js/leagues.js`. O app mostra:
 
 - separador **Ao vivo**: só os jogos a decorrer, em destaque (placar e minuto), e por baixo os
   próximos 5 jogos;
+- separador **Resultados**: placar final dos jogos que já terminaram hoje e dos de ontem;
 - separador **Campeonatos**: um botão por competição (com o número de jogos e quantos estão ao vivo);
   toque para ver os jogos dessa competição nos próximos 14 dias;
-- separador **Calendário**: os próximos **14 dias**, um botão por dia, com o número de jogos;
+- separador **Calendário**: de **ontem** até daqui a 13 dias, um botão por dia, com o número de jogos;
 - visual em azul e roxo, cada campeonato com a sua cor;
 - **horário de Portugal** (muda sozinho no horário de verão);
 - **canal de TV do Brasil** em hoje e amanhã (ou "canal a confirmar"); o site dos canais só

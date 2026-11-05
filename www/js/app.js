@@ -3,7 +3,7 @@ import { addDays, dayKey, hhmm, shortDate, todayTomorrow, weekday } from './time
 import { fetchEspn } from './sources/espn.js';
 import { fetchFootballData } from './sources/footballdata.js';
 import { fetchChannels } from './channels.js';
-import { calendarDays, isLiveish, isSantos, mergeLive, nextLiveDelay, sortMatches } from './logic.js';
+import { calendarDays, isLiveish, isSantos, mergeLive, needsResult, nextLiveDelay, sortMatches } from './logic.js';
 import * as store from './store.js';
 
 const CAL_DAYS = 14;                       // calendário: hoje + 13 dias
@@ -16,7 +16,7 @@ let state = store.load();
 let busy = false;
 let liveTimer = null;
 let message = '';
-let view = 'aovivo';       // 'aovivo' | 'campeonatos' | 'calendario'
+let view = 'aovivo';       // 'aovivo' | 'resultados' | 'campeonatos' | 'calendario'
 let selectedLeague = null; // campeonato aberto no separador Campeonatos
 let selectedDay = null;    // dia escolhido no calendário
 
@@ -47,8 +47,11 @@ const minKey = (a, b) => (a < b ? a : b);
 
 async function refreshAgenda() {
   const { today, tomorrow } = todayTomorrow(new Date());
+  const yesterday = addDays(today, -1);
   const lastDay = addDays(today, CAL_DAYS - 1);
-  const { matches: fresh, failed, errors } = await loadLeagues(LEAGUES, addDays(today, -1), lastDay); // a ESPN usa o dia dos EUA: o "ontem" de lá tem jogos da madrugada de hoje em Portugal
+  // A ESPN usa o dia dos EUA, que vai atrás do de Portugal: para ter os jogos de ontem (de Portugal)
+  // é preciso pedir também o dia anterior.
+  const { matches: fresh, failed, errors } = await loadLeagues(LEAGUES, addDays(today, -2), lastDay);
   if (failed.length === LEAGUES.length) {
     const why = Object.values(errors)[0] || '';
     throw new Error(`Não foi possível ligar ao servidor dos jogos${why ? ` (${why})` : ''}.`);
@@ -59,7 +62,7 @@ async function refreshAgenda() {
   const kept = state.matches.filter((m) => failedKeys.has(m.league));
   const seen = new Set();
   let matches = [...fresh, ...kept]
-    .filter((m) => { const d = dayKey(new Date(m.start)); return d >= today && d <= lastDay; })
+    .filter((m) => { const d = dayKey(new Date(m.start)); return d >= yesterday && d <= lastDay; })
     .filter((m) => !seen.has(m.id) && seen.add(m.id));
 
   // Canais: o site só tem as páginas de hoje e de amanhã.
@@ -78,12 +81,17 @@ async function refreshAgenda() {
   store.save(state);
 }
 
+const pendingResults = (now = Date.now()) => state.matches.filter((m) => needsResult(m, now, state.liveFetchedAt || 0));
+
+/** Atualiza placares: jogos a decorrer + jogos que já acabaram e ainda não têm o resultado final. */
 async function refreshLive() {
   const now = Date.now();
-  const keys = [...new Set(state.matches.filter((m) => isLiveish(m, now)).map((m) => m.league))];
+  const todo = [...state.matches.filter((m) => isLiveish(m, now)), ...pendingResults(now)];
+  const keys = [...new Set(todo.map((m) => m.league))];
   if (!keys.length) return;
   const { today } = todayTomorrow(new Date(now));
-  const { matches: fresh } = await loadLeagues(keys.map(leagueByKey), addDays(today, -1), addDays(today, 1));
+  const first = todo.map((m) => dayKey(new Date(m.start))).sort()[0];
+  const { matches: fresh } = await loadLeagues(keys.map(leagueByKey), addDays(minKey(first, today), -1), today);
   state = { ...state, matches: mergeLive(state.matches, fresh), liveFetchedAt: Date.now() };
   store.save(state);
 }
@@ -132,6 +140,7 @@ function scheduleLive() {
 function onOpen() {
   render();
   if (agendaIsOld()) run(refreshAgenda);
+  else if (pendingResults().length) run(refreshLive); // buscar placares finais que faltam
   else scheduleLive();
 }
 
@@ -160,7 +169,7 @@ const nearDays = (now) => { const { today, tomorrow } = todayTomorrow(new Date(n
 
 function dayLabel(d, now) {
   const [today, tomorrow] = nearDays(now);
-  return d === today ? 'Hoje' : d === tomorrow ? 'Amanhã' : weekday(d);
+  return d === today ? 'Hoje' : d === tomorrow ? 'Amanhã' : d === addDays(today, -1) ? 'Ontem' : weekday(d);
 }
 
 function leagueTag(key) {
@@ -192,9 +201,9 @@ function row(m, now, { showTbc = true, showLeague = false, showDay = false } = {
     </div>`;
 }
 
-function leaguesOfDay(key, now, opts) {
-  const ofDay = state.matches.filter((m) => dayKey(new Date(m.start)) === key);
-  if (!ofDay.length) return '<p class="empty">Sem jogos neste dia.</p>';
+function leaguesOfDay(key, now, opts = {}) {
+  const ofDay = state.matches.filter((m) => dayKey(new Date(m.start)) === key && (!opts.only || opts.only(m)));
+  if (!ofDay.length) return `<p class="empty">${opts.emptyText || 'Sem jogos neste dia.'}</p>`;
   let html = '';
   for (const l of LEAGUES) {
     const list = sortMatches(ofDay.filter((m) => m.league === l.key));
@@ -234,7 +243,20 @@ function renderAoVivo(now) {
   return html + santosBox(now);
 }
 
-/* Separador 2: lista de campeonatos → jogos do campeonato escolhido */
+/* Separador 2: resultados (placar final) de hoje e de ontem */
+function renderResultados(now) {
+  const [today] = nearDays(now);
+  const yesterday = addDays(today, -1);
+  const ended = (m) => m.state === 'done' || m.state === 'off';
+  return `
+    <h2 class="section-title">Terminados hoje <small>${shortDate(today)}</small></h2>
+    ${leaguesOfDay(today, now, { only: ended, showTbc: false, emptyText: 'Ainda nenhum jogo terminou hoje.' })}
+    <h2 class="section-title">Ontem <small>${shortDate(yesterday)}</small></h2>
+    ${leaguesOfDay(yesterday, now, { only: ended, showTbc: false, emptyText: 'Sem resultados de ontem.' })}
+    <p class="note">Os jogos de ontem aparecem depois da primeira atualização de hoje.</p>`;
+}
+
+/* Separador 3: lista de campeonatos → jogos do campeonato escolhido */
 function renderCampeonatos(now) {
   if (selectedLeague && leagueByKey(selectedLeague)) {
     const l = leagueByKey(selectedLeague);
@@ -263,10 +285,10 @@ function renderCampeonatos(now) {
     <div class="league-grid">${cards}</div>`;
 }
 
-/* Separador 3: calendário por dia */
+/* Separador 4: calendário por dia (de ontem até daqui a 13 dias) */
 function renderCalendario(now) {
   const [today, tomorrow] = nearDays(now);
-  const days = calendarDays(today, CAL_DAYS);
+  const days = calendarDays(addDays(today, -1), CAL_DAYS + 1);
   if (!selectedDay || !days.includes(selectedDay)) selectedDay = today;
   const counts = new Map();
   for (const m of state.matches) {
@@ -299,7 +321,7 @@ function render() {
     $('#content').innerHTML = busy ? '<div class="card empty-card"><p>A carregar os jogos…</p></div>'
       : `<div class="card empty-card"><p>Ainda sem dados. Ligue a internet e toque em “Atualizar”.</p>${message ? `<p class="error">${esc(message)}</p>` : ''}</div>`;
   } else {
-    const views = { aovivo: renderAoVivo, campeonatos: renderCampeonatos, calendario: renderCalendario };
+    const views = { aovivo: renderAoVivo, resultados: renderResultados, campeonatos: renderCampeonatos, calendario: renderCalendario };
     $('#content').innerHTML = (views[view] || renderAoVivo)(now);
     const chip = document.querySelector('.chip.on');
     if (chip) chip.scrollIntoView({ block: 'nearest', inline: 'center' });

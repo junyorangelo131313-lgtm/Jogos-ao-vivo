@@ -172,3 +172,13 @@ test('lista de competições tem as ligas europeias e as de seleções', () => {
   }
   assert.equal(new Set(LEAGUES.map((l) => l.key)).size, LEAGUES.length);
 });
+
+test('resultados: pede o placar final de jogos que já acabaram', async () => {
+  const { needsResult } = await import('../www/js/logic.js');
+  const m = { state: 'pre', start: '2026-11-04T18:00:00Z' };
+  const now = Date.parse('2026-11-04T21:00:00Z');
+  assert.ok(needsResult(m, now, Date.parse('2026-11-04T17:00:00Z')));   // última atualização antes do jogo
+  assert.ok(!needsResult(m, now, Date.parse('2026-11-04T20:00:00Z')));  // já atualizado depois do fim
+  assert.ok(!needsResult({ ...m, state: 'done' }, now, 0));
+  assert.ok(!needsResult(m, Date.parse('2026-11-04T19:00:00Z'), 0));   // ainda a decorrer
+});
