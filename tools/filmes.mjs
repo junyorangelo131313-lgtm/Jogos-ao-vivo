@@ -189,7 +189,7 @@ async function main() {
       where: where.length ? { ALL: { stream: where } } : {},
       link: `https://www.imdb.com/title/${x.id}/`,
       _score: x._base + Math.max(0, ...themes.map((t) => t.bonus)) * (themes.length > 1 ? 1.15 : 1)
-        + (pt?.text ? 0.5 : en?.text ? 0 : -0.6) + (where.length ? 0.4 : 0),
+        + (pt?.text ? 0.5 : en?.text ? -1.2 : -1.5) + (where.length ? 0.4 : 0),
     });
   }
 
