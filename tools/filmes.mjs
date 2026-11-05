@@ -1,186 +1,210 @@
 // Gera filmes.json: ~20 filmes e séries recentes e bem avaliados, escolhidos para o gosto do
 // utilizador (roubos/golpes, hackers e tecnologia, estratégia, espionagem e guerra).
-// Corre no GitHub Actions uma vez por dia (workflow "Filmes"), com a chave do TMDB em Secrets.
-// O app só descarrega o ficheiro pronto, por isso o telemóvel não gasta consultas nem precisa de chave.
+// Corre no GitHub Actions uma vez por dia (workflow "Filmes"). NÃO precisa de conta nem de chave:
+//   - IMDb (ficheiros públicos diários): nota de 0 a 10, votos, géneros e ano
+//   - Wikidata: título em português, géneros detalhados (ex.: "heist film") e plataforma
+//   - Wikipédia (pt, ou en se não houver): resumo e imagem
+// O app só descarrega o ficheiro pronto.
 //
-// Uso: TMDB_TOKEN=... node tools/filmes.mjs saida/filmes.json
+// Uso: node tools/filmes.mjs saida/filmes.json
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { createGunzip } from 'node:zlib';
+import { Readable } from 'node:stream';
+import { createInterface } from 'node:readline';
 
-const TOKEN = (process.env.TMDB_TOKEN || '').trim();
 const OUT = process.argv[2] || 'filmes.json';
-const API = 'https://api.themoviedb.org/3';
-const IMG = 'https://image.tmdb.org/t/p/w342';
 const TOTAL = 20;
+const UA = 'JogosAoVivo/1.0 (app pessoal; https://github.com/junyorangelo131313-lgtm/Jogos-ao-vivo)';
+const YEAR = new Date().getUTCFullYear();
 
-if (!TOKEN) {
-  console.log('::notice::Secret TMDB_TOKEN não definido: a lista de filmes não foi gerada.');
-  process.exit(0);
-}
+const TYPES = { movie: 'Filme', tvSeries: 'Série', tvMiniSeries: 'Série' };
+const TASTE = ['Crime', 'Thriller', 'War', 'Action', 'Sci-Fi', 'Mystery'];
+const EXCLUDE = ['Animation', 'Family', 'Horror', 'Musical', 'Reality-TV', 'Talk-Show', 'Game-Show', 'Documentary', 'News'];
+const GENRE_PT = {
+  Action: 'Ação', Adventure: 'Aventura', Biography: 'Biografia', Comedy: 'Comédia', Crime: 'Crime', Drama: 'Drama',
+  Fantasy: 'Fantasia', History: 'História', Mystery: 'Mistério', 'Sci-Fi': 'Ficção científica', Thriller: 'Suspense',
+  War: 'Guerra', Western: 'Faroeste', Sport: 'Desporto', Romance: 'Romance',
+};
 
-// A chave pode ser a "API Key" (curta, v3) ou o "API Read Access Token" (longo, v4).
-const useBearer = TOKEN.length > 40;
-
-async function tmdb(path, params = {}) {
-  const url = new URL(API + path);
-  for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== '') url.searchParams.set(k, v);
-  if (!useBearer) url.searchParams.set('api_key', TOKEN);
-  const headers = { Accept: 'application/json' };
-  if (useBearer) headers.Authorization = `Bearer ${TOKEN}`;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const r = await fetch(url, { headers });
-    if (r.status === 429) { await new Promise((ok) => setTimeout(ok, 1500 * (attempt + 1))); continue; }
-    if (!r.ok) throw new Error(`TMDB HTTP ${r.status} em ${path}: ${(await r.text()).slice(0, 200)}`);
-    return r.json();
-  }
-  throw new Error(`TMDB: demasiados pedidos em ${path}`);
-}
-
-const iso = (d) => d.toISOString().slice(0, 10);
-const now = new Date();
-const daysAgo = (n) => iso(new Date(now.getTime() - n * 864e5));
-const today = iso(now);
-
-// Temas do gosto do utilizador → palavras-chave do TMDB (em inglês) e etiqueta mostrada no app.
+// Temas do gosto do utilizador: procurados nos géneros do Wikidata e no resumo da Wikipédia.
 const THEMES = [
-  { tag: 'Roubo', bonus: 1.4, words: ['heist', 'bank robbery', 'jewel heist', 'robbery', 'art theft', 'thief'] },
-  { tag: 'Golpe', bonus: 1.2, words: ['con artist', 'con man', 'swindle', 'mastermind'] },
-  { tag: 'Hacker', bonus: 1.2, words: ['hacker', 'hacking', 'cyber crime', 'artificial intelligence'] },
-  { tag: 'Espionagem', bonus: 0.9, words: ['spy', 'espionage', 'secret agent'] },
-  { tag: 'Estratégia', bonus: 0.9, words: ['strategy', 'chess', 'cat and mouse', 'plan gone wrong'] },
-  { tag: 'Guerra', bonus: 0.9, words: ['war', 'world war ii', 'military', 'soldier', 'battle'] },
+  { tag: 'Roubo', bonus: 1.4, re: /heist|caper|robbery|roubo|assalto|ladr[aã]o|thief|jewel|joia/i },
+  { tag: 'Golpe', bonus: 1.1, re: /con artist|swindl|golpe|golpista|vigarista|scam/i },
+  { tag: 'Hacker', bonus: 1.1, re: /hacker|cyber|ciber|techno-thriller|intelig[eê]ncia artificial|artificial intelligence/i },
+  { tag: 'Espionagem', bonus: 0.9, re: /\bspy\b|espionage|espi[aã]o|espionagem|\bCIA\b|\bMI6\b|secret agent|agente secreto/i },
+  { tag: 'Estratégia', bonus: 0.8, re: /strateg|estrat[eé]gi|xadrez|chess|mastermind|plano perfeito|cat-and-mouse/i },
+  { tag: 'Guerra', bonus: 0.9, re: /\bwar film\b|war drama|guerra|\bwar\b|military|militar|soldad|soldier/i },
 ];
 
-async function keywordIds() {
-  const map = new Map(); // id → tema
-  for (const t of THEMES) {
-    for (const w of t.words) {
-      const r = await tmdb('/search/keyword', { query: w });
-      const hit = (r.results || []).find((k) => k.name.toLowerCase() === w) || (r.results || [])[0];
-      if (hit && !map.has(hit.id)) map.set(hit.id, t);
-    }
+// Plataformas de streaming conhecidas (nomes como aparecem no Wikidata → nome mostrado).
+const PLATFORMS = [
+  [/netflix/i, 'Netflix'], [/amazon|prime video/i, 'Prime Video'], [/apple/i, 'Apple TV+'], [/disney/i, 'Disney+'],
+  [/\bhbo\b|\bmax\b/i, 'Max'], [/paramount/i, 'Paramount+'], [/globoplay/i, 'Globoplay'], [/hulu/i, 'Disney+'],
+];
+
+async function get(url, opts = {}) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const r = await fetch(url, { ...opts, headers: { 'User-Agent': UA, ...(opts.headers || {}) } });
+    if (r.status === 429 || r.status >= 500) { await new Promise((ok) => setTimeout(ok, 2000 * (attempt + 1))); continue; }
+    return r;
   }
-  return map;
+  throw new Error(`demasiadas tentativas: ${url}`);
 }
 
-// Géneros do TMDB. Filmes: Ação 28, Crime 80, Mistério 9648, Ficção científica 878, Thriller 53, Guerra 10752.
-// Séries: Ação e Aventura 10759, Crime 80, Mistério 9648, Ficção e Fantasia 10765, Guerra e Política 10768.
-const MOVIE_GENRES = '28|80|9648|878|53|10752';
-const TV_GENRES = '10759|80|9648|10765|10768';
-const WAR = { movie: 10752, tv: 10768 };
-
-async function discover(type, extra, pages = 2) {
-  const out = [];
-  const dateGte = type === 'movie' ? 'primary_release_date.gte' : 'first_air_date.gte';
-  const dateLte = type === 'movie' ? 'primary_release_date.lte' : 'first_air_date.lte';
-  for (let page = 1; page <= pages; page++) {
-    const r = await tmdb(`/discover/${type}`, {
-      language: 'pt-BR',
-      sort_by: 'vote_average.desc',
-      'vote_count.gte': type === 'movie' ? 120 : 60,
-      'vote_average.gte': 6.5,
-      [dateGte]: daysAgo(type === 'movie' ? 730 : 900),
-      [dateLte]: today,
-      include_adult: 'false',
-      page,
-      ...extra,
-    });
-    out.push(...(r.results || []).map((x) => ({ ...x, _type: type })));
-    if (page >= (r.total_pages || 1)) break;
+async function* tsv(url) {
+  const r = await get(url);
+  if (!r.ok) throw new Error(`HTTP ${r.status} em ${url}`);
+  const lines = createInterface({ input: Readable.fromWeb(r.body).pipe(createGunzip()), crlfDelay: Infinity });
+  let first = true;
+  for await (const line of lines) {
+    if (first) { first = false; continue; }
+    yield line.split('\t');
   }
+}
+
+/** 1) IMDb: notas e candidatos. */
+async function imdbCandidates() {
+  const ratings = new Map();
+  for await (const [id, avg, votes] of tsv('https://datasets.imdbws.com/title.ratings.tsv.gz')) {
+    const v = Number(votes);
+    if (v >= 1500) ratings.set(id, [Number(avg), v]);
+  }
+  console.log(`IMDb: ${ratings.size} títulos com 1500+ votos`);
+  const out = [];
+  for await (const [id, type, primary, original, adult, start, , minutes, genres] of tsv('https://datasets.imdbws.com/title.basics.tsv.gz')) {
+    const kind = TYPES[type];
+    if (!kind || adult === '1') continue;
+    const year = Number(start);
+    if (!year || year > YEAR || year < YEAR - (kind === 'Série' ? 2 : 1)) continue;
+    const r = ratings.get(id);
+    if (!r) continue;
+    const [rating, votes] = r;
+    const g = genres === '\\N' ? [] : genres.split(',');
+    if (!g.some((x) => TASTE.includes(x)) || g.some((x) => EXCLUDE.includes(x))) continue;
+    if (rating < 6.8 || votes < (kind === 'Série' ? 2000 : 4000)) continue;
+    out.push({ id, kind, title: primary, original, year, rating, votes, genres: g, runtime: minutes === '\\N' ? null : Number(minutes) });
+  }
+  console.log(`IMDb: ${out.length} candidatos (${YEAR - 2}–${YEAR}, géneros do gosto, nota ≥ 6,8)`);
   return out;
 }
 
-function score(x, themes) {
-  const votes = x.vote_count || 0;
-  const confidence = Math.min(1, Math.log10(Math.max(votes, 1)) / 3.3); // ~2000 votos = confiança total
-  const date = x.release_date || x.first_air_date || '';
-  const age = date ? (now - new Date(date)) / 864e5 : 999;
-  const recent = age < 90 ? 0.8 : age < 180 ? 0.5 : age < 365 ? 0.25 : 0;
-  const themeBonus = Math.max(0, ...themes.map((t) => t.bonus));
-  return (x.vote_average || 0) * confidence + themeBonus + recent;
+function baseScore(x) {
+  const confidence = Math.min(1, Math.log10(x.votes) / 4.3); // ~20 000 votos = confiança total
+  const recent = x.year === YEAR ? 0.6 : x.year === YEAR - 1 ? 0.3 : 0;
+  const war = x.genres.includes('War') ? 0.5 : 0;
+  const crimeThriller = x.genres.includes('Crime') && x.genres.includes('Thriller') ? 0.4 : 0;
+  return x.rating * confidence + recent + war + crimeThriller;
 }
 
-function providers(wp) {
-  const pick = (c) => {
-    const r = wp?.results?.[c];
-    if (!r) return null;
-    const names = (list) => [...new Set((list || []).map((p) => p.provider_name))].slice(0, 4);
-    return { stream: names(r.flatrate), rent: names([...(r.rent || []), ...(r.buy || [])]) };
-  };
-  return { BR: pick('BR'), PT: pick('PT') };
+/** 2) Wikidata: título em português, géneros detalhados, plataforma e páginas da Wikipédia. */
+async function wikidata(ids) {
+  const map = new Map();
+  for (let i = 0; i < ids.length; i += 40) {
+    const values = ids.slice(i, i + 40).map((id) => `"${id}"`).join(' ');
+    const q = `SELECT ?imdb ?ptbr ?pt ?ptwiki ?enwiki
+      (GROUP_CONCAT(DISTINCT ?gl; separator="|") AS ?genres) (GROUP_CONCAT(DISTINCT ?nl; separator="|") AS ?nets) WHERE {
+      VALUES ?imdb { ${values} }
+      ?item wdt:P345 ?imdb .
+      OPTIONAL { ?item rdfs:label ?ptbr FILTER(LANG(?ptbr) = "pt-br") }
+      OPTIONAL { ?item rdfs:label ?pt FILTER(LANG(?pt) = "pt") }
+      OPTIONAL { ?ptwiki schema:about ?item; schema:isPartOf <https://pt.wikipedia.org/> }
+      OPTIONAL { ?enwiki schema:about ?item; schema:isPartOf <https://en.wikipedia.org/> }
+      OPTIONAL { ?item wdt:P136 ?g . ?g rdfs:label ?gl FILTER(LANG(?gl) = "en") }
+      OPTIONAL { { ?item wdt:P449 ?n } UNION { ?item wdt:P750 ?n } ?n rdfs:label ?nl FILTER(LANG(?nl) = "en") }
+    } GROUP BY ?imdb ?ptbr ?pt ?ptwiki ?enwiki`;
+    const r = await get(`https://query.wikidata.org/sparql?format=json&query=${encodeURIComponent(q)}`, { headers: { Accept: 'application/sparql-results+json' } });
+    if (!r.ok) { console.warn(`Wikidata HTTP ${r.status}`); continue; }
+    const j = await r.json();
+    for (const b of j.results.bindings) {
+      const v = (k) => b[k]?.value || '';
+      if (map.has(v('imdb'))) continue;
+      map.set(v('imdb'), {
+        ptTitle: v('ptbr') || v('pt'),
+        ptwiki: v('ptwiki'), enwiki: v('enwiki'),
+        genres: v('genres').split('|').filter(Boolean),
+        nets: v('nets').split('|').filter(Boolean),
+      });
+    }
+  }
+  console.log(`Wikidata: ${map.size} de ${ids.length} encontrados`);
+  return map;
 }
+
+/** 3) Wikipédia: resumo e imagem. */
+async function summary(pageUrl) {
+  if (!pageUrl) return null;
+  const u = new URL(pageUrl);
+  const title = decodeURIComponent(u.pathname.replace('/wiki/', ''));
+  const r = await get(`${u.origin}/api/rest_v1/page/summary/${encodeURIComponent(title)}`);
+  if (!r.ok) return null;
+  const j = await r.json();
+  return { text: j.extract || '', image: j.thumbnail?.source || j.originalimage?.source || null, title: j.title || title };
+}
+
+const cleanTitle = (t) => String(t || '').replace(/\s*\((filme|série|serie|minissérie|film|tv series|miniseries)[^)]*\)\s*$/i, '').trim();
+const short = (t, n = 420) => (t.length > n ? `${t.slice(0, n - 3).trim()}…` : t);
 
 async function main() {
-  const kw = await keywordIds();
-  const kwList = [...kw.keys()].join('|');
-  const pool = new Map();
-  const add = (list) => { for (const x of list) if (!pool.has(`${x._type}:${x.id}`)) pool.set(`${x._type}:${x.id}`, x); };
+  const cands = (await imdbCandidates()).map((x) => ({ ...x, _base: baseScore(x) })).sort((a, b) => b._base - a._base).slice(0, 80);
+  const wd = await wikidata(cands.map((x) => x.id));
 
-  add(await discover('movie', { with_keywords: kwList }, 3));       // filmes com os temas preferidos
-  add(await discover('tv', { with_keywords: kwList }, 2));          // séries com os temas preferidos
-  add(await discover('movie', { with_genres: MOVIE_GENRES }, 3));   // bons filmes dos géneros escolhidos
-  add(await discover('tv', { with_genres: TV_GENRES }, 2));         // boas séries dos géneros escolhidos
-  add(await discover('movie', { with_genres: String(WAR.movie) }, 1)); // garantir filmes de guerra
-  console.log(`Candidatos: ${pool.size}`);
-
-  // Detalhes (palavras-chave reais, duração, onde assistir) só dos ~45 melhores à partida.
-  const pre = [...pool.values()].sort((a, b) => score(b, []) - score(a, [])).slice(0, 45);
-  const detailed = [];
-  for (const x of pre) {
-    const d = await tmdb(`/${x._type}/${x.id}`, { language: 'pt-BR', append_to_response: 'keywords,watch/providers' });
-    const kws = d.keywords?.keywords || d.keywords?.results || [];
-    const themes = [...new Set(kws.map((k) => kw.get(k.id)).filter(Boolean))];
-    const genres = (d.genres || []).map((g) => g.name);
-    const isWar = (d.genres || []).some((g) => g.id === WAR[x._type]);
-    if (isWar && !themes.some((t) => t.tag === 'Guerra')) themes.push(THEMES.find((t) => t.tag === 'Guerra'));
-    let overview = d.overview;
-    if (!overview) overview = (await tmdb(`/${x._type}/${x.id}`, { language: 'en-US' })).overview || '';
-    detailed.push({
-      key: `${x._type}:${x.id}`,
-      type: x._type === 'movie' ? 'Filme' : 'Série',
-      title: d.title || d.name,
-      original: d.original_title || d.original_name,
-      date: d.release_date || d.first_air_date || '',
-      rating: Math.round((d.vote_average || 0) * 10) / 10,
-      votes: d.vote_count || 0,
-      genres: genres.slice(0, 3),
+  const items = [];
+  for (const x of cands) {
+    const w = wd.get(x.id) || { genres: [], nets: [] };
+    const pt = await summary(w.ptwiki);
+    const en = pt?.text ? null : await summary(w.enwiki);
+    const text = pt?.text || en?.text || '';
+    const hay = `${w.genres.join(' ')} ${text} ${x.genres.join(' ')}`;
+    const themes = THEMES.filter((t) => t.re.test(hay));
+    const nets = [...new Set(w.nets.map((n) => PLATFORMS.find(([re]) => re.test(n))?.[1]).filter(Boolean))];
+    items.push({
+      key: x.id,
+      type: x.kind,
+      title: cleanTitle(w.ptTitle || (w.ptwiki && pt?.title) || x.title),
+      original: x.original,
+      date: String(x.year),
+      rating: x.rating,
+      votes: x.votes,
+      genres: x.genres.map((g) => GENRE_PT[g] || g).slice(0, 3),
       tags: themes.map((t) => t.tag),
-      runtime: d.runtime || d.episode_run_time?.[0] || null,
-      seasons: d.number_of_seasons || null,
-      overview: overview.length > 420 ? `${overview.slice(0, 417).trim()}…` : overview,
-      poster: d.poster_path ? IMG + d.poster_path : null,
-      where: providers(d['watch/providers']),
-      link: `https://www.themoviedb.org/${x._type}/${x.id}`,
-      _score: score(d, themes),
+      runtime: x.kind === 'Filme' ? x.runtime : null,
+      seasons: null,
+      overview: short(text),
+      overviewLang: pt?.text ? 'pt' : en?.text ? 'en' : '',
+      poster: pt?.image || en?.image || null,
+      where: nets.length ? { ALL: { stream: nets } } : {},
+      link: `https://www.imdb.com/title/${x.id}/`,
+      _score: x._base + Math.max(0, ...themes.map((t) => t.bonus)),
     });
   }
 
-  // Escolha final: os melhores pela pontuação, com variedade (filmes e séries, e alguns de guerra).
-  detailed.sort((a, b) => b._score - a._score);
+  // Escolha final: os melhores, com variedade (no máximo 8 séries e pelo menos 3 de guerra, se houver).
+  items.sort((a, b) => b._score - a._score);
   const chosen = [];
-  const count = (f) => chosen.filter(f).length;
-  for (const x of detailed) {
+  for (const x of items) {
     if (chosen.length >= TOTAL) break;
-    if (x.type === 'Série' && count((c) => c.type === 'Série') >= 7) continue;
+    if (x.type === 'Série' && chosen.filter((c) => c.type === 'Série').length >= 8) continue;
     chosen.push(x);
   }
-  for (const x of detailed) { // pelo menos 3 de guerra, se houver
-    if (count((c) => c.tags.includes('Guerra')) >= 3) break;
+  for (const x of items) {
+    if (chosen.filter((c) => c.tags.includes('Guerra')).length >= 3) break;
     if (!x.tags.includes('Guerra') || chosen.includes(x)) continue;
-    // troca pelo pior escolhido que não seja de guerra
     let worst = -1;
     for (let i = chosen.length - 1; i >= 0; i--) if (!chosen[i].tags.includes('Guerra')) { worst = i; break; }
-    if (chosen.length < TOTAL) chosen.push(x);
-    else if (worst >= 0) chosen.splice(worst, 1, x);
+    if (chosen.length < TOTAL) chosen.push(x); else if (worst >= 0) chosen.splice(worst, 1, x);
   }
   chosen.sort((a, b) => b._score - a._score);
 
-  const items = chosen.map(({ _score, ...x }, i) => ({ rank: i + 1, ...x }));
+  const out = chosen.map(({ _score, ...x }, i) => ({ rank: i + 1, ...x }));
+  if (out.length < 5) throw new Error(`só ${out.length} títulos: algo falhou nas fontes`);
   mkdirSync(dirname(OUT), { recursive: true });
-  writeFileSync(OUT, JSON.stringify({ updatedAt: new Date().toISOString(), source: 'TMDB', items }, null, 1));
-  console.log(`Guardado ${OUT} com ${items.length} títulos:`);
-  for (const x of items) console.log(`${String(x.rank).padStart(2)}. ★${x.rating} ${x.type} ${x.title} (${x.date.slice(0, 4)}) [${x.tags.join(', ')}] BR:${x.where.BR?.stream?.join('/') || '-'}`);
+  writeFileSync(OUT, JSON.stringify({ updatedAt: new Date().toISOString(), source: 'IMDb + Wikidata + Wikipédia', items: out }, null, 1));
+  console.log(`Guardado ${OUT} com ${out.length} títulos:`);
+  for (const x of out) {
+    console.log(`${String(x.rank).padStart(2)}. ★${x.rating} ${x.type} ${x.title} (${x.date}) [${x.tags.join(', ')}] ` +
+      `onde: ${x.where.ALL?.stream?.join('/') || '-'} | resumo: ${x.overviewLang || 'não'} | imagem: ${x.poster ? 'sim' : 'não'}`);
+  }
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });

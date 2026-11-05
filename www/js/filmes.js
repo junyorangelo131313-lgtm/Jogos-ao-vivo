@@ -1,5 +1,5 @@
 // Separador "Filmes": lista de ~20 filmes e séries recomendados.
-// A lista é escolhida uma vez por dia no GitHub (workflow "Filmes", dados do TMDB) e publicada
+// A lista é escolhida uma vez por dia no GitHub (workflow "Filmes": IMDb + Wikidata + Wikipédia) e publicada
 // num ficheiro. O app só descarrega esse ficheiro, no máximo de 12 em 12 horas.
 import { getJson } from './http.js';
 
@@ -27,6 +27,7 @@ export async function fetchFilmes() {
 
 /** "Netflix · Prime Video" para o país; se não houver streaming, aluguer/compra. */
 export function whereText(where) {
+  if (where?.ALL?.stream?.length) return where.ALL.stream.join(', ');
   const parts = [];
   for (const [c, label] of [['BR', 'Brasil'], ['PT', 'Portugal']]) {
     const w = where?.[c];

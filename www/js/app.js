@@ -348,8 +348,8 @@ function filmeCard(f) {
         <div class="film-meta">${esc(meta)}</div>
         <div class="film-rate"><span class="rate">★ ${filmes.nota(f.rating)}<small>/10</small></span>
           ${(f.tags || []).map((t) => `<span class="ftag">${esc(t)}</span>`).join('')}</div>
-        ${f.overview ? `<p class="film-text">${esc(f.overview)}</p>` : ''}
-        <div class="film-where">${where ? `📺 ${esc(where)}` : '📺 Plataforma ainda por confirmar'}</div>
+        ${f.overview ? `<p class="film-text"${f.overviewLang === 'en' ? ' lang="en"' : ''}>${esc(f.overview)}</p>` : ''}
+        <div class="film-where">${where ? `📺 ${esc(where)}` : '📺 Cinema / plataforma a confirmar'}</div>
       </div>
     </article>`;
 }
@@ -367,7 +367,7 @@ function renderFilmes() {
   html += `<div class="films">${c.items.map(filmeCard).join('')}</div>`;
   const when = c.updatedAt ? new Date(c.updatedAt) : null;
   html += `<p class="note">Lista atualizada todos os dias${when ? ` (última: ${shortDate(dayKey(when))} às ${hhmm(when)})` : ''}.
-    ${filmesError ? esc(filmesError) : ''} Dados: TMDB (themoviedb.org).</p>`;
+    ${filmesError ? esc(filmesError) : ''} Notas: IMDb. Resumos e imagens: Wikipédia.</p>`;
   return html;
 }
 

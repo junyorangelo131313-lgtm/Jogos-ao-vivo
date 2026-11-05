@@ -20,16 +20,14 @@ concurrency:
 jobs:
   filmes:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Escolher os filmes (TMDB)
+      - name: Escolher os filmes (IMDb + Wikidata + Wikipédia, sem chave)
         id: gerar
-        env:
-          TMDB_TOKEN: ${{ secrets.TMDB_TOKEN }}
         run: |
           node tools/filmes.mjs saida/filmes.json
           if [ -f saida/filmes.json ]; then echo "ok=true" >> "$GITHUB_OUTPUT"; fi
@@ -45,4 +43,4 @@ jobs:
           prerelease: true
           make_latest: false
           files: saida/filmes.json
-          body: Ficheiro usado pelo separador "Filmes" do app. Dados do TMDB (themoviedb.org).
+          body: Ficheiro usado pelo separador "Filmes" do app. Notas do IMDb; títulos, resumos e imagens da Wikidata/Wikipédia.
