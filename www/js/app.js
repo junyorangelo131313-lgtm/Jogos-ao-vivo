@@ -5,6 +5,7 @@ import { fetchFootballData } from './sources/footballdata.js';
 import { fetchChannels } from './channels.js';
 import { calendarDays, isLiveish, isSantos, mergeLive, needsResult, nextLiveDelay, sortMatches } from './logic.js';
 import * as store from './store.js';
+import * as filmes from './filmes.js';
 
 const CAL_DAYS = 14;                       // calendário: hoje + 13 dias
 const AGENDA_MAX_AGE = 4 * 60 * 60 * 1000; // agenda: no máximo ~6 vezes por dia
@@ -16,8 +17,11 @@ let state = store.load();
 let busy = false;
 let liveTimer = null;
 let message = '';
-let view = 'aovivo';       // 'aovivo' | 'resultados' | 'campeonatos' | 'calendario'
+let view = 'aovivo';       // 'aovivo' | 'resultados' | 'campeonatos' | 'calendario' | 'filmes'
 let selectedLeague = null; // campeonato aberto no separador Campeonatos
+let filmesState = filmes.loadCache();
+let filmesBusy = false;
+let filmesError = '';
 let selectedDay = null;    // dia escolhido no calendário
 
 const $ = (sel) => document.querySelector(sel);
@@ -310,6 +314,62 @@ function renderCalendario(now) {
     ${near ? '' : '<p class="note">Os canais de TV aparecem na véspera do jogo.</p>'}`;
 }
 
+/* Separador 5: filmes e séries recomendados */
+async function loadFilmes(force = false) {
+  if (filmesBusy || (!force && !filmes.isStale(filmesState))) return;
+  filmesBusy = true;
+  filmesError = '';
+  if (view === 'filmes') render();
+  try {
+    filmesState = await filmes.fetchFilmes();
+  } catch (e) {
+    console.warn('filmes', e);
+    filmesError = /HTTP 404/.test(e.message)
+      ? 'A lista de filmes ainda não foi criada no GitHub.'
+      : 'Não foi possível carregar a lista de filmes.';
+  } finally {
+    filmesBusy = false;
+    if (view === 'filmes') render();
+  }
+}
+
+function filmeCard(f) {
+  const year = f.date ? f.date.slice(0, 4) : '';
+  const meta = [f.type, year, f.genres?.slice(0, 2).join(', '), f.runtime && f.type === 'Filme' ? `${f.runtime} min` : '',
+    f.seasons ? `${f.seasons} temporada${f.seasons > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ');
+  const where = filmes.whereText(f.where);
+  return `
+    <article class="film">
+      <div class="film-rank">${f.rank}</div>
+      ${f.poster ? `<img class="poster" src="${esc(f.poster)}" alt="" loading="lazy">` : '<div class="poster none">🎬</div>'}
+      <div class="film-info">
+        <h3>${esc(f.title)}</h3>
+        <div class="film-meta">${esc(meta)}</div>
+        <div class="film-rate"><span class="rate">★ ${filmes.nota(f.rating)}<small>/10</small></span>
+          ${(f.tags || []).map((t) => `<span class="ftag">${esc(t)}</span>`).join('')}</div>
+        ${f.overview ? `<p class="film-text">${esc(f.overview)}</p>` : ''}
+        <div class="film-where">${where ? `📺 ${esc(where)}` : '📺 Plataforma ainda por confirmar'}</div>
+      </div>
+    </article>`;
+}
+
+function renderFilmes() {
+  loadFilmes();
+  const c = filmesState;
+  let html = `<h2 class="section-title">🎬 Filmes e séries para ver</h2>
+    <p class="hint">Recentes e bem avaliados, escolhidos pelo seu gosto: roubos e golpes, hackers e tecnologia,
+    estratégia, espionagem e guerra. Ordem: os melhores primeiro (nota de 0 a 10).</p>`;
+  if (!c.items.length) {
+    html += `<div class="card empty-card"><p>${filmesBusy ? 'A carregar a lista…' : esc(filmesError || 'Ainda sem lista de filmes.')}</p></div>`;
+    return html;
+  }
+  html += `<div class="films">${c.items.map(filmeCard).join('')}</div>`;
+  const when = c.updatedAt ? new Date(c.updatedAt) : null;
+  html += `<p class="note">Lista atualizada todos os dias${when ? ` (última: ${shortDate(dayKey(when))} às ${hhmm(when)})` : ''}.
+    ${filmesError ? esc(filmesError) : ''} Dados: TMDB (themoviedb.org).</p>`;
+  return html;
+}
+
 function render() {
   const now = Date.now();
   document.querySelectorAll('.tab').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.view === view)));
@@ -317,11 +377,11 @@ function render() {
   const badge = document.querySelector('.tab[data-view="aovivo"] .badge');
   if (badge) { badge.textContent = liveN || ''; badge.hidden = !liveN; }
 
-  if (!state.matches.length && !state.fetchedAt) {
+  if (!state.matches.length && !state.fetchedAt && view !== 'filmes') {
     $('#content').innerHTML = busy ? '<div class="card empty-card"><p>A carregar os jogos…</p></div>'
       : `<div class="card empty-card"><p>Ainda sem dados. Ligue a internet e toque em “Atualizar”.</p>${message ? `<p class="error">${esc(message)}</p>` : ''}</div>`;
   } else {
-    const views = { aovivo: renderAoVivo, resultados: renderResultados, campeonatos: renderCampeonatos, calendario: renderCalendario };
+    const views = { aovivo: renderAoVivo, resultados: renderResultados, campeonatos: renderCampeonatos, calendario: renderCalendario, filmes: renderFilmes };
     $('#content').innerHTML = (views[view] || renderAoVivo)(now);
     const chip = document.querySelector('.chip.on');
     if (chip) chip.scrollIntoView({ block: 'nearest', inline: 'center' });

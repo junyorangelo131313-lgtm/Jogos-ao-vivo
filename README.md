@@ -15,6 +15,11 @@ A lista fica em `www/js/leagues.js`. O app mostra:
 - separador **Resultados**: placar final dos jogos que já terminaram hoje e dos de ontem;
 - separador **Campeonatos**: um botão por competição (com o número de jogos e quantos estão ao vivo);
   toque para ver os jogos dessa competição nos próximos 14 dias;
+- separador **Filmes**: ~20 filmes e séries recentes e bem avaliados (nota de 0 a 10), escolhidos
+  para o gosto de roubos/golpes, hackers e tecnologia, estratégia, espionagem e guerra, com onde
+  assistir no Brasil e em Portugal. A lista é refeita **uma vez por dia** no GitHub (workflow
+  "Filmes", dados do TMDB) e o app descarrega-a no máximo de 12 em 12 horas. Precisa do Secret
+  `TMDB_TOKEN` (chave grátis em themoviedb.org);
 - separador **Calendário**: de **ontem** até daqui a 13 dias, um botão por dia, com o número de jogos;
 - visual em azul e roxo, cada campeonato com a sua cor;
 - **horário de Portugal** (muda sozinho no horário de verão);
