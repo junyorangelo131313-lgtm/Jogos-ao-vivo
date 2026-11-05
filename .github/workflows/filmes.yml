@@ -1,0 +1,48 @@
+name: Filmes
+
+# Atualiza a lista de filmes e séries recomendados uma vez por dia.
+# (O GitHub só corre o horário agendado a partir do ramo principal do repositório.)
+on:
+  schedule:
+    - cron: '17 6 * * *' # todos os dias às 06:17 UTC
+  workflow_dispatch:
+  push:
+    branches: [claude/apk-download-request-wjf5m3]
+    paths: [tools/filmes.mjs, .github/workflows/filmes.yml]
+
+permissions:
+  contents: write # publicar filmes.json na release "filmes"
+
+concurrency:
+  group: filmes
+  cancel-in-progress: false
+
+jobs:
+  filmes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Escolher os filmes (TMDB)
+        id: gerar
+        env:
+          TMDB_TOKEN: ${{ secrets.TMDB_TOKEN }}
+        run: |
+          node tools/filmes.mjs saida/filmes.json
+          if [ -f saida/filmes.json ]; then echo "ok=true" >> "$GITHUB_OUTPUT"; fi
+      # Release própria, marcada como pré-lançamento e nunca "latest",
+      # para não mexer no link direto do APK (releases/latest/download/JogosAoVivo.apk).
+      - name: Publicar filmes.json
+        if: steps.gerar.outputs.ok == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: filmes
+          name: Lista de filmes (atualizada todos os dias)
+          target_commitish: ${{ github.sha }}
+          prerelease: true
+          make_latest: false
+          files: saida/filmes.json
+          body: Ficheiro usado pelo separador "Filmes" do app. Dados do TMDB (themoviedb.org).

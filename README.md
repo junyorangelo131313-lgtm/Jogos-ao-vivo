@@ -1,12 +1,32 @@
 # Jogos ao Vivo ⚽
 
-App Android simples: mostra os jogos de **hoje e amanhã** do Brasileirão, Premier League,
-Bundesliga e dos campeonatos Italiano, Espanhol, Português e Argentino, com:
+App Android simples com os jogos destas competições:
 
+- **Ligas:** Brasileirão, Premier League, Campeonato Espanhol, Italiano, Bundesliga,
+  Campeonato Francês, Português e Argentino;
+- **Taças de clubes:** Champions League, Liga Europa, Libertadores, Copa Sul-Americana e Copa do Brasil;
+- **Seleções:** Liga das Nações (UEFA), Eliminatórias da América do Sul, Copa América, Copa do Mundo
+  e amistosos das seleções da América do Sul (Brasil, Argentina, Uruguai, etc.).
+
+A lista fica em `www/js/leagues.js`. O app mostra:
+
+- separador **Ao vivo**: só os jogos a decorrer, em destaque (placar e minuto), e por baixo os
+  próximos 5 jogos;
+- separador **Resultados**: placar final dos jogos que já terminaram hoje e dos de ontem;
+- separador **Campeonatos**: um botão por competição (com o número de jogos e quantos estão ao vivo);
+  toque para ver os jogos dessa competição nos próximos 14 dias;
+- separador **Filmes**: ~20 filmes e séries recentes e bem avaliados (nota de 0 a 10), escolhidos
+  para o gosto de roubos/golpes, hackers e tecnologia, estratégia, espionagem e guerra, com onde
+  assistir no Brasil e em Portugal. A lista é refeita **uma vez por dia** no GitHub (workflow
+  "Filmes", dados do TMDB) e o app descarrega-a no máximo de 12 em 12 horas. Precisa do Secret
+  `TMDB_TOKEN` (chave grátis em themoviedb.org);
+- separador **Calendário**: de **ontem** até daqui a 13 dias, um botão por dia, com o número de jogos;
+- visual em azul e roxo, cada campeonato com a sua cor;
 - **horário de Portugal** (muda sozinho no horário de verão);
-- **canal de TV do Brasil** (ou "canal a confirmar");
-- secção **AO VIVO** no topo, com placar e minuto;
-- jogos do **Santos sempre em destaque** (fundo dourado e ★).
+- **canal de TV do Brasil** em hoje e amanhã (ou "canal a confirmar"); o site dos canais só
+  publica a véspera, por isso os dias mais à frente aparecem sem canal;
+- jogos do **Santos sempre em destaque** (fundo dourado e ★) e caixa "Próximos jogos do Santos";
+- tema da tela **Automático** (segue o telemóvel), **Escuro** ou **Claro**; a escolha fica guardada.
 
 O APK é gerado automaticamente pelo GitHub sempre que o código muda.
 
@@ -16,8 +36,8 @@ O APK é gerado automaticamente pelo GitHub sempre que o código muda.
 
 | O quê | Fonte | Precisa de chave? |
 |---|---|---|
-| Jogos, placares e minuto ao vivo (os 7 campeonatos) | ESPN (dados públicos) | Não |
-| Reserva, se a ESPN falhar (6 campeonatos, **sem o Argentino**) | football-data.org, plano grátis | Sim (opcional) |
+| Jogos, placares e minuto ao vivo (todas as competições) | ESPN (dados públicos) | Não |
+| Reserva, se a ESPN falhar (só Brasileirão, Champions, 6 ligas europeias e Copa do Mundo) | football-data.org, plano grátis | Sim (opcional) |
 | Canais de TV do Brasil | futebolnatv.com.br | Não |
 
 **Porque não a API-Football?** O plano grátis da API-Football só libera **temporadas antigas**
@@ -26,17 +46,22 @@ Por isso foi trocada.
 
 **O que fica de fora / limitações:**
 - A ESPN não é uma API oficial: é grátis e completa, mas um dia pode mudar. Se isso acontecer,
-  o app passa sozinho para o football-data.org (se tiver a chave) — **exceto o Argentino**,
-  que no football-data.org grátis não existe.
+  o app passa sozinho para o football-data.org (se tiver a chave), mas só para as competições
+  que o plano grátis tem (ficam de fora Argentino, Liga Europa, taças sul-americanas, Copa do Brasil
+  e jogos de seleções, exceto a Copa do Mundo).
+- Desde novembro de 2026 a ESPN não aceita pedir vários dias de uma vez; o app pede **dia a dia**
+  (no máximo 8 pedidos ao mesmo tempo). Por isso a primeira atualização pode levar alguns segundos.
 - No football-data.org grátis o placar ao vivo chega **com atraso** e às vezes sem o minuto.
 - Os canais vêm de um site que não tem API. Se o site mudar o layout, aparece
   "canal a confirmar" até o app ser ajustado. Os jogos e horários continuam a funcionar.
-- Só entram os campeonatos da lista (não entram Copa do Brasil, Libertadores, Série B, etc.).
+- Só entram as competições da lista (não entram Série B, Liga Conferência, etc.).
   Se o Santos jogar noutra competição, não aparece.
 
 **Quantas consultas faz:** a agenda é guardada no telemóvel e atualizada no máximo a cada
 4 horas (≈ 6 vezes por dia). O placar ao vivo é atualizado de 10 em 10 minutos, **só com o app
-aberto e só quando há jogo a decorrer**. O botão "Atualizar" não deixa repetir em menos de 10 minutos.
+aberto e só quando há jogo a decorrer**. O botão "Atualizar" não deixa repetir em menos de 2 minutos
+(a não ser que a última tentativa tenha dado erro). Se um campeonato falhar, o motivo aparece em
+baixo, junto de "Sem dados agora".
 
 ---
 
@@ -116,6 +141,19 @@ chega por e-mail. Cole-a no Secret `FOOTBALL_DATA_KEY`.
 ---
 
 ## 5. Gerar e baixar o APK
+
+### O jeito mais fácil (link direto, serve no celular e no tablet)
+
+Abra no navegador do aparelho:
+
+**https://github.com/junyorangelo131313-lgtm/Jogos-ao-vivo/releases/latest/download/JogosAoVivo.apk**
+
+O APK baixa logo, sem `.zip` e sem precisar de conta no GitHub. O link é sempre o mesmo e
+aponta para a última versão compilada (a página com os detalhes fica em **Releases**, à direita
+na página do repositório). Este link é público: se cadastrou o Secret `FOOTBALL_DATA_KEY`,
+essa chave vai dentro do APK (ver o aviso no passo 2).
+
+### Pelo separador Actions (alternativa)
 
 1. No repositório, clique no separador **Actions**.
 2. À esquerda, clique em **Gerar APK**.

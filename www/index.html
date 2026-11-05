@@ -3,21 +3,39 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="color-scheme" content="dark">
-  <meta name="theme-color" content="#0d1117">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#0f1638">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: capacitor: http://localhost; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self'">
   <title>Jogos ao Vivo</title>
   <link rel="stylesheet" href="css/style.css">
+  <!-- Aplica o tema (automático / escuro / claro) antes de mostrar a página -->
+  <script src="js/theme.js"></script>
 </head>
 <body>
   <header>
-    <h1>Jogos ao Vivo</h1>
-    <p class="sub">Horários de Portugal · canais do Brasil</p>
+    <div class="head-row">
+      <div class="brand">
+        <span class="logo" aria-hidden="true">⚽</span>
+        <div>
+          <h1>Jogos ao Vivo</h1>
+          <p class="sub">Horários de Portugal · canais do Brasil</p>
+        </div>
+      </div>
+    </div>
+    <div class="theme" role="group" aria-label="Tema da tela">
+      <button type="button" class="theme-opt" data-theme="auto">Automático</button>
+      <button type="button" class="theme-opt" data-theme="dark">Escuro</button>
+      <button type="button" class="theme-opt" data-theme="light">Claro</button>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button type="button" class="tab" role="tab" data-view="aovivo">Ao vivo <span class="badge" hidden></span></button>
+      <button type="button" class="tab" role="tab" data-view="resultados">Resultados</button>
+      <button type="button" class="tab" role="tab" data-view="campeonatos">Ligas</button>
+      <button type="button" class="tab" role="tab" data-view="calendario">Calendário</button>
+      <button type="button" class="tab" role="tab" data-view="filmes">Filmes</button>
+    </nav>
   </header>
-  <main>
-    <section id="live" aria-live="polite"></section>
-    <div id="list"></div>
-  </main>
+  <main id="content"></main>
   <footer>
     <p id="status"></p>
     <button id="refresh" type="button">Atualizar</button>

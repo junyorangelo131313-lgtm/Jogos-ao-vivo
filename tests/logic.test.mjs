@@ -62,7 +62,7 @@ test('lê os dados do football-data.org', () => {
     { id: 9, utcDate: '2026-11-04T20:00:00Z', status: 'PAUSED', competition: { code: 'PL' },
       homeTeam: { name: 'Arsenal FC', shortName: 'Arsenal' }, awayTeam: { name: 'Chelsea FC', shortName: 'Chelsea' },
       score: { fullTime: { home: 1, away: 0 } } },
-    { id: 10, utcDate: '2026-11-04T20:00:00Z', status: 'TIMED', competition: { code: 'CL' },
+    { id: 10, utcDate: '2026-11-04T20:00:00Z', status: 'TIMED', competition: { code: 'ELC' },
       homeTeam: {}, awayTeam: {}, score: {} },
   ] });
   assert.equal(ms.length, 1);
@@ -118,4 +118,67 @@ test('atualização ao vivo mantém os canais', () => {
   const old = [{ id: 'x', state: 'pre', score: null, minute: '', channels: ['Globo'] }];
   const merged = mergeLive(old, [{ id: 'x', state: 'live', score: { home: 1, away: 0 }, minute: "12'" }]);
   assert.deepEqual(merged[0], { id: 'x', state: 'live', score: { home: 1, away: 0 }, minute: "12'", channels: ['Globo'] });
+});
+
+test('calendário: dias seguidos e dia da semana', async () => {
+  const { calendarDays } = await import('../www/js/logic.js');
+  const { weekday } = await import('../www/js/time.js');
+  const days = calendarDays('2026-11-04', 14);
+  assert.equal(days.length, 14);
+  assert.equal(days[0], '2026-11-04');
+  assert.equal(days[13], '2026-11-17');
+  assert.equal(weekday('2026-11-04'), 'Qua');
+  assert.equal(weekday('2026-11-08'), 'Dom');
+});
+
+test('respostas da internet: aceita texto JSON ou objeto já lido', async () => {
+  const { parseJsonBody } = await import('../www/js/http.js');
+  assert.deepEqual(parseJsonBody('{"events":[]}'), { events: [] });
+  assert.deepEqual(parseJsonBody({ events: [1] }), { events: [1] });
+  assert.throws(() => parseJsonBody(''), /vazia/);
+  assert.throws(() => parseJsonBody('<html>'), /inválida/);
+});
+
+test('URL da ESPN cobre o período do calendário', async () => {
+  const { espnUrl } = await import('../www/js/sources/espn.js');
+  const u = espnUrl(LEAGUES[0], '2026-11-03', '2026-11-18');
+  assert.match(u, /bra\.1\/scoreboard\?dates=20261103-20261118/);
+  assert.match(u, /lang=pt/);
+  assert.doesNotMatch(espnUrl(LEAGUES[0], '2026-11-03', '2026-11-18', false), /lang=/);
+});
+
+test('ESPN: URL de um dia e lista de dias do período', async () => {
+  const { espnUrl, daysBetween } = await import('../www/js/sources/espn.js');
+  assert.match(espnUrl(LEAGUES.find((l) => l.key === 'eng'), '2026-11-04'), /eng\.1\/scoreboard\?dates=20261104&/);
+  const days = daysBetween('2026-11-03', '2026-11-18');
+  assert.equal(days.length, 16);
+  assert.equal(days.at(-1), '2026-11-18');
+});
+
+test('amistosos: só jogos com seleções da América do Sul', async () => {
+  const { keepMatch, leagueByKey } = await import('../www/js/leagues.js');
+  const ami = leagueByKey('ami');
+  const m = (h, a) => ({ home: { name: h, alt: [] }, away: { name: a, alt: [] } });
+  assert.ok(keepMatch(ami, m('Brasil', 'Japão')));
+  assert.ok(keepMatch(ami, m('França', 'Colômbia')));
+  assert.ok(!keepMatch(ami, m('Índia', 'Nova Zelândia')));
+  assert.ok(keepMatch(leagueByKey('eng'), m('Arsenal', 'Chelsea')));
+});
+
+test('lista de competições tem as ligas europeias e as de seleções', () => {
+  const codes = LEAGUES.map((l) => l.espn);
+  for (const c of ['eng.1', 'esp.1', 'ita.1', 'ger.1', 'fra.1', 'por.1', 'uefa.champions', 'uefa.nations', 'fifa.worldq.conmebol', 'bra.1']) {
+    assert.ok(codes.includes(c), c);
+  }
+  assert.equal(new Set(LEAGUES.map((l) => l.key)).size, LEAGUES.length);
+});
+
+test('resultados: pede o placar final de jogos que já acabaram', async () => {
+  const { needsResult } = await import('../www/js/logic.js');
+  const m = { state: 'pre', start: '2026-11-04T18:00:00Z' };
+  const now = Date.parse('2026-11-04T21:00:00Z');
+  assert.ok(needsResult(m, now, Date.parse('2026-11-04T17:00:00Z')));   // última atualização antes do jogo
+  assert.ok(!needsResult(m, now, Date.parse('2026-11-04T20:00:00Z')));  // já atualizado depois do fim
+  assert.ok(!needsResult({ ...m, state: 'done' }, now, 0));
+  assert.ok(!needsResult(m, Date.parse('2026-11-04T19:00:00Z'), 0));   // ainda a decorrer
 });
