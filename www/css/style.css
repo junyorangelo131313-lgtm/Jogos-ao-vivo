@@ -248,12 +248,23 @@ footer { margin-top: 24px; text-align: center; }
 .tabela th { color: var(--muted); font-weight: 700; font-size: .66rem; padding: 6px 3px; text-align: center; border-bottom: 1px solid var(--line); }
 .tabela td { padding: 6px 3px; text-align: center; border-bottom: 1px solid var(--line); }
 .tabela tr:last-child td { border-bottom: 0; }
-.tabela .pos { width: 2.4em; text-align: left; white-space: nowrap; font-weight: 700; }
+.tabela .pos { width: 3.4em; text-align: left; white-space: nowrap; font-weight: 700; }
 .tabela .zone { display: inline-block; width: 3px; height: 1.1em; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
 .tabela .tm { text-align: left; max-width: 0; width: 100%; }
 .tabela .tm img { width: 16px; height: 16px; object-fit: contain; vertical-align: middle; margin-right: 5px; }
-.tabela .tm span { display: inline-block; max-width: calc(100% - 22px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
+.tabela .tm span { display: inline-block; max-width: calc(100% - 58px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
 .tabela .pts { font-weight: 800; color: var(--accent); }
 .tabela .santos-row td { background: var(--santos-bg); font-weight: 700; }
 .zones { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 8px 2px 0; font-size: .68rem; color: var(--muted); }
 .zones i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+
+/* Tabela ao vivo */
+.live-note { display: flex; align-items: center; gap: 6px; font-size: .72rem; color: var(--muted); margin: 2px 0 8px; }
+.mv { display: inline-block; font-size: .6rem; font-weight: 800; margin-left: 3px; vertical-align: middle; }
+.mv.up { color: #22c55e; }
+.mv.down { color: var(--live); }
+.tabela .tm .lv { display: inline-block; max-width: none; margin-left: 5px; font-size: .62rem; font-weight: 800; padding: 1px 5px; border-radius: 6px; color: #fff; vertical-align: middle; }
+.lv.win { background: #16a34a; }
+.lv.draw { background: #ca8a04; }
+.lv.loss { background: var(--live); }
+.tabela tr.playing td { background: color-mix(in srgb, var(--accent2) 10%, transparent); }

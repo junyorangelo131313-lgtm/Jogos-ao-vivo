@@ -29,6 +29,7 @@ export function parseStandings(data) {
       const ga = num(st.pointsAgainst);
       return {
         rank: num(st.rank) || i + 1,
+        id: e.team?.id ? String(e.team.id) : null,
         team: e.team?.displayName || e.team?.shortDisplayName || e.team?.name || '?',
         short: e.team?.shortDisplayName || e.team?.abbreviation || '',
         logo: e.team?.logos?.[0]?.href || null,
@@ -45,6 +46,55 @@ export function parseStandings(data) {
     }).sort((a, b) => a.rank - b.rank);
     return { name: toPt(g.name || g.abbreviation || ''), rows };
   }).filter((g) => g.rows.length);
+}
+
+const plain = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+/**
+ * Tabela ao vivo: aplica os placares dos jogos a decorrer à classificação oficial e reordena
+ * (pontos, saldo, golos marcados). Cada linha ganha:
+ *   liveRank – posição agora;  delta – lugares ganhos (+) ou perdidos (−) face à tabela oficial;
+ *   live     – { gf, ga, result: 'win' | 'draw' | 'loss' } se a equipa está a jogar.
+ */
+export function liveTable(groups, liveMatches) {
+  const same = (row, t) => (row.id && t.id ? row.id === t.id : plain(row.team) === plain(t.name) || (t.alt || []).some((a) => plain(a) === plain(row.team)));
+  return groups.map((g) => {
+    const rows = g.rows.map((r) => {
+      let live = null;
+      for (const m of liveMatches) {
+        if (!m.score) continue;
+        const home = same(r, m.home);
+        if (!home && !same(r, m.away)) continue;
+        const gf = home ? m.score.home : m.score.away;
+        const ga = home ? m.score.away : m.score.home;
+        live = { gf, ga, result: gf > ga ? 'win' : gf === ga ? 'draw' : 'loss', minute: m.minute || '' };
+        break;
+      }
+      if (!live) return { ...r, live: null };
+      const pts = live.result === 'win' ? 3 : live.result === 'draw' ? 1 : 0;
+      return {
+        ...r,
+        live,
+        played: r.played === null ? null : r.played + 1,
+        wins: r.wins === null ? null : r.wins + (live.result === 'win' ? 1 : 0),
+        draws: r.draws === null ? null : r.draws + (live.result === 'draw' ? 1 : 0),
+        losses: r.losses === null ? null : r.losses + (live.result === 'loss' ? 1 : 0),
+        gf: r.gf === null ? null : r.gf + live.gf,
+        ga: r.ga === null ? null : r.ga + live.ga,
+        gd: r.gd === null ? null : r.gd + live.gf - live.ga,
+        points: r.points === null ? null : r.points + pts,
+      };
+    });
+    const anyLive = rows.some((r) => r.live);
+    const sorted = anyLive
+      ? [...rows].sort((a, b) => (b.points ?? 0) - (a.points ?? 0) || (b.gd ?? 0) - (a.gd ?? 0) || (b.gf ?? 0) - (a.gf ?? 0) || a.rank - b.rank)
+      : rows;
+    return {
+      ...g,
+      live: anyLive,
+      rows: sorted.map((r, i) => ({ ...r, liveRank: anyLive ? i + 1 : r.rank, delta: anyLive ? r.rank - (i + 1) : 0 })),
+    };
+  });
 }
 
 function loadAll() {

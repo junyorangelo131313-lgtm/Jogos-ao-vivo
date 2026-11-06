@@ -16,7 +16,9 @@ A lista fica em `www/js/leagues.js`. O app mostra:
 - separador **Campeonatos**: um botão por competição (com o número de jogos e quantos estão ao vivo);
   toque para ver os **Jogos** dessa competição nos próximos 14 dias ou a **Classificação**
   (posição, jogos, vitórias, empates, derrotas, saldo e pontos, com as cores das zonas:
-  Libertadores, Champions, rebaixamento, etc.). Taças a eliminar, como a Copa do Brasil, não têm tabela;
+  Libertadores, Champions, rebaixamento, etc.). Com jogos a decorrer, a tabela fica **ao vivo**: soma os placares atuais,
+  mostra o placar ao lado de quem joga (verde a ganhar, amarelo empate, vermelho a perder) e setas
+  ▲▼ com os lugares que cada equipa sobe ou desce. Taças a eliminar, como a Copa do Brasil, não têm tabela;
 - separador **Filmes**: ~20 filmes e séries recentes e bem avaliados (nota de 0 a 10), escolhidos
   para o gosto de roubos/golpes, hackers e tecnologia, estratégia, espionagem e guerra, com a plataforma
   quando se sabe (Netflix, Prime Video, etc.). A lista é refeita **uma vez por dia** no GitHub (workflow
