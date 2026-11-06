@@ -60,3 +60,25 @@ for (const l of LEAGUES) {
     console.log(`${l.name.padEnd(22)} FALHOU ${e.message}`);
   }
 }
+
+console.log('\n=== Classificações (ESPN standings) ===');
+for (const code of ['bra.1', 'eng.1', 'arg.1', 'uefa.champions', 'uefa.nations', 'fifa.worldq.conmebol', 'bra.copa_do_brazil']) {
+  for (const base of ['https://site.api.espn.com/apis/v2/sports/soccer', 'https://site.web.api.espn.com/apis/v2/sports/soccer']) {
+    const r = await probe(`${base}/${code}/standings?lang=pt&region=br`, { Accept: 'application/json' });
+    if (r.error) { console.log(code, base.split('/')[2], 'ERRO', r.error); continue; }
+    let info = `HTTP ${r.status} ${r.len}B`;
+    try {
+      const j = JSON.parse(r.body);
+      const groups = j.children || (j.standings ? [j] : []);
+      info += ` | grupos=${groups.length} chaves=${Object.keys(j).join(',')}`;
+      const g = groups[0];
+      const e = g?.standings?.entries || [];
+      info += ` | 1º grupo "${g?.name || g?.abbreviation || ''}" ${e.length} equipas`;
+      if (e[0]) {
+        info += ` | ex: ${e[0].team?.displayName} stats: ` + (e[0].stats || []).map((s) => `${s.name || s.type}=${s.displayValue ?? s.value}`).join(' ');
+        info += ` | note: ${JSON.stringify(e[0].note || null)}`;
+      }
+    } catch { info += ` | não é JSON: ${r.body.slice(0, 150)}`; }
+    console.log(`${code.padEnd(22)} ${base.split('/')[2].padEnd(22)} ${info}`);
+  }
+}

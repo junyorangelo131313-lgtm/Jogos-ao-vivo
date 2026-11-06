@@ -2,6 +2,13 @@ name: Gerar APK
 
 on:
   push:
+    # Mudanças só em ferramentas internas, filmes ou texto não geram APK novo
+    # (senão o app mostrava o aviso de "versão nova" sem novidades).
+    paths-ignore:
+      - 'tools/**'
+      - 'README.md'
+      - '.github/workflows/diagnostico.yml'
+      - '.github/workflows/filmes.yml'
   workflow_dispatch: # permite gerar o APK à mão, no botão "Run workflow"
 
 permissions:
