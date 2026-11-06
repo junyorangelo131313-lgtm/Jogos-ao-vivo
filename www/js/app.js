@@ -163,7 +163,9 @@ document.addEventListener('visibilitychange', () => {
 function channelText(m, showTbc = true) {
   if (m.state === 'off') return 'Adiado / cancelado';
   if (m.channels?.length) return m.channels.join(' · ');
-  return showTbc ? 'canal a confirmar' : '';
+  if (!showTbc) return '';
+  const usual = leagueByKey(m.league)?.usual;
+  return usual ? `${usual.join(' · ')} (provável)` : 'canal a confirmar';
 }
 
 function scoreOrX(m) {

@@ -61,6 +61,8 @@ Por isso foi trocada.
 - No football-data.org grátis o placar ao vivo chega **com atraso** e às vezes sem o minuto.
 - Os canais vêm de um site que não tem API. Se o site mudar o layout, aparece
   "canal a confirmar" até o app ser ajustado. Os jogos e horários continuam a funcionar.
+- No **Campeonato Argentino**, se o site não listar o jogo, o app mostra
+  "ESPN · Disney+ (provável)", porque são esses que costumam ter os direitos no Brasil.
 - Só entram as competições da lista (não entram Série B, Liga Conferência, etc.).
   Se o Santos jogar noutra competição, não aparece.
 

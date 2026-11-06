@@ -3,6 +3,8 @@
 // fd     = código no football-data.org (reserva; o plano grátis só tem algumas)
 // filter = 'conmebol' → mostra só jogos com uma seleção da América do Sul
 // color  = cor do campeonato na tela
+// usual  = canais que costumam ter os direitos no Brasil; mostrados como "(provável)"
+//          quando o site de canais não lista o jogo
 export const LEAGUES = [
   { key: 'bra', name: 'Brasileirão', espn: 'bra.1', fd: 'BSA', color: '#22c55e' },
   { key: 'ucl', name: 'Champions League', espn: 'uefa.champions', fd: 'CL', color: '#3b82f6' },
@@ -21,7 +23,7 @@ export const LEAGUES = [
   { key: 'cam', name: 'Copa América', espn: 'conmebol.america', fd: null, color: '#0ea5e9' },
   { key: 'wc', name: 'Copa do Mundo', espn: 'fifa.world', fd: 'WC', color: '#d946ef' },
   { key: 'ami', name: 'Amistosos de seleções', espn: 'fifa.friendly', fd: null, filter: 'conmebol', color: '#ec4899' },
-  { key: 'arg', name: 'Campeonato Argentino', espn: 'arg.1', fd: null, color: '#38bdf8' },
+  { key: 'arg', name: 'Campeonato Argentino', espn: 'arg.1', fd: null, color: '#38bdf8', usual: ['ESPN', 'Disney+'] },
 ];
 
 export const leagueByKey = (key) => LEAGUES.find((l) => l.key === key);
