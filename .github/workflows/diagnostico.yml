@@ -17,5 +17,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Sonda dos detalhes do jogo
+        run: node tools/sonda-detalhes.mjs
       - name: Testar as fontes de dados
         run: node tools/diagnostico.mjs
