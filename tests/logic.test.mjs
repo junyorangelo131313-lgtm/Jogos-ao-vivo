@@ -208,3 +208,22 @@ test('classificação: lê a tabela da ESPN', async () => {
   assert.equal(g[0].rows[1].zone.text, 'A: Quartas de final');
   assert.deepEqual(parseStandings({ name: 'Copa', seasons: [] }), []); // taça sem tabela
 });
+
+test('tabela ao vivo: soma o placar a decorrer e mostra quem sobe/desce', async () => {
+  const { liveTable } = await import('../www/js/standings.js');
+  const row = (rank, id, team, points, gd) => ({ rank, id, team, points, gd, gf: 20, ga: 20, played: 10, wins: 5, draws: 2, losses: 3 });
+  const groups = [{ name: '', rows: [row(1, '1', 'A', 20, 5), row(2, '2', 'B', 19, 3), row(3, '3', 'Santos', 18, 1), row(4, '4', 'D', 10, -9)] }];
+  const live = [{ home: { id: '3', name: 'Santos' }, away: { id: '1', name: 'A' }, score: { home: 2, away: 0 }, minute: "70'" }];
+  const [g] = liveTable(groups, live);
+  assert.ok(g.live);
+  assert.deepEqual(g.rows.map((r) => r.team), ['Santos', 'A', 'B', 'D']);
+  const santos = g.rows[0];
+  assert.equal(santos.points, 21);
+  assert.equal(santos.delta, 2);          // ▲2
+  assert.equal(santos.live.result, 'win');
+  assert.equal(g.rows[1].delta, -1);      // A ▼1
+  assert.equal(g.rows[1].live.result, 'loss');
+  assert.equal(g.rows[3].delta, 0);
+  // sem jogos a decorrer: tabela igual à oficial
+  assert.ok(!liveTable(groups, [])[0].live);
+});

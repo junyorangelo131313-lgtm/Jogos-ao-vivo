@@ -266,10 +266,19 @@ function renderResultados(now) {
 }
 
 /* Classificação de um campeonato (pedida só quando se abre) */
+// Tabela oficial: guardada 6 horas; com jogos deste campeonato a decorrer ou acabados há pouco,
+// volta a pedir de 15 em 15 minutos (para apanhar a tabela oficial logo que a ESPN a atualize).
+function tabelaMaxAge(l, now = Date.now()) {
+  const busy = state.matches.some((m) => m.league === l.key && (isLiveish(m, now)
+    || (m.state === 'done' && now - Date.parse(m.start) < 4 * 60 * 60 * 1000)));
+  return busy ? 15 * 60 * 1000 : 6 * 60 * 60 * 1000;
+}
+
 async function loadTabela(l, force = false) {
   if (tabelaBusy.has(l.key)) return;
   const c = standings.cached(l.key);
-  if (!force && c && Date.now() - c.fetchedAt < 6 * 60 * 60 * 1000) return;
+  if (!force && c && Date.now() - c.fetchedAt < tabelaMaxAge(l)) return;
+  force = force || Boolean(c);
   tabelaBusy.add(l.key);
   delete tabelaError[l.key];
   try {
@@ -290,19 +299,26 @@ function tabelaHtml(l) {
     return `<div class="card empty-card"><p>${tabelaBusy.has(l.key) ? 'A carregar a classificação…' : esc(tabelaError[l.key] || 'Sem classificação.')}</p></div>`;
   }
   if (!c.groups.length) return '<div class="card empty-card"><p>Esta competição não tem tabela de classificação (é a eliminar ou ainda não começou).</p></div>';
+  const now = Date.now();
+  const liveMs = state.matches.filter((m) => m.league === l.key && isLiveish(m, now) && m.score);
+  const groups = standings.liveTable(c.groups, liveMs);
   const zones = new Map();
-  let html = '';
-  for (const g of c.groups) {
-    if (c.groups.length > 1 && g.name) html += `<h3 class="day-sub">${esc(g.name)}</h3>`;
+  let html = groups.some((g) => g.live)
+    ? '<p class="live-note"><span class="dot"></span><span>Tabela <b>ao vivo</b>, com os placares dos jogos a decorrer. ▲▼ = lugares que sobe ou desce agora.</span></p>'
+    : '';
+  for (const g of groups) {
+    if (groups.length > 1 && g.name) html += `<h3 class="day-sub">${esc(g.name)}</h3>`;
     html += `<div class="card table-card"><table class="tabela">
       <thead><tr><th class="pos">#</th><th class="tm">Equipa</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th><th class="pts">Pts</th></tr></thead><tbody>
       ${g.rows.map((r) => {
         if (r.zone?.text) zones.set(r.zone.color, r.zone.text);
         const santos = /\bsantos\b/i.test(r.team) && !/laguna/i.test(r.team);
         const gd = r.gd === null ? '' : r.gd > 0 ? `+${r.gd}` : r.gd;
-        return `<tr class="${santos ? 'santos-row' : ''}">
-          <td class="pos"><span class="zone" style="background:${r.zone?.color || 'transparent'}"></span>${r.rank}</td>
-          <td class="tm">${r.logo ? `<img src="${esc(r.logo)}" alt="" loading="lazy">` : ''}<span>${santos ? '★ ' : ''}${esc(r.team)}</span></td>
+        const arrow = r.delta > 0 ? `<span class="mv up">▲${r.delta}</span>` : r.delta < 0 ? `<span class="mv down">▼${-r.delta}</span>` : '';
+        const live = r.live ? `<span class="lv ${r.live.result}" title="${esc(r.live.minute)}">${r.live.gf}-${r.live.ga}</span>` : '';
+        return `<tr class="${santos ? 'santos-row' : ''}${r.live ? ' playing' : ''}">
+          <td class="pos"><span class="zone" style="background:${r.zone?.color || 'transparent'}"></span>${r.liveRank}${arrow}</td>
+          <td class="tm">${r.logo ? `<img src="${esc(r.logo)}" alt="" loading="lazy">` : ''}<span>${santos ? '★ ' : ''}${esc(r.team)}</span>${live}</td>
           <td>${r.played ?? ''}</td><td>${r.wins ?? ''}</td><td>${r.draws ?? ''}</td><td>${r.losses ?? ''}</td>
           <td>${gd}</td><td class="pts">${r.points ?? ''}</td></tr>`;
       }).join('')}

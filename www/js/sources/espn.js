@@ -24,6 +24,7 @@ export function daysBetween(fromKey, toKey) {
 function team(c) {
   const t = c?.team || {};
   return {
+    id: t.id ? String(t.id) : null,
     name: t.displayName || t.shortDisplayName || t.name || '?',
     alt: [t.shortDisplayName, t.name, t.location, t.abbreviation].filter(Boolean),
   };
