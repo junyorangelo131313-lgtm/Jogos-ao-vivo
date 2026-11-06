@@ -32,8 +32,24 @@ A lista fica em `www/js/leagues.js`. O app mostra:
 - **horário de Portugal** (muda sozinho no horário de verão);
 - **canal de TV do Brasil** em hoje e amanhã (ou "canal a confirmar"); o site dos canais só
   publica a véspera, por isso os dias mais à frente aparecem sem canal;
-- jogos do **Santos sempre em destaque** (fundo dourado e ★) e caixa "Próximos jogos do Santos";
-- tema da tela **Automático** (segue o telemóvel), **Escuro** ou **Claro**; a escolha fica guardada.
+- **os meus times**: o Santos vem como favorito; toque num jogo e depois em **☆ Seguir** para
+  acrescentar outros. Os favoritos ficam em destaque (fundo dourado e ★) e na caixa "Os meus times"
+  (toque no ✕ para deixar de seguir);
+- **avisos no telemóvel 30 minutos antes** de cada jogo dos seus times, com o canal
+  ("★ Santos x Palmeiras às 20:00 — Brasileirão · Premiere"). Funcionam com o app fechado.
+  Na primeira vez o Android pergunta se deixa mostrar notificações: responda **Permitir**.
+  Liga/desliga no botão 🔔 no fundo da tela. (Avisos de golo com o app fechado não são possíveis
+  sem um servidor pago.);
+- **detalhes do jogo**: toque em qualquer jogo para ver golos (com quem marcou e assistência),
+  cartões, estatísticas (posse de bola, remates, cantos…) e o estádio. O botão "voltar" do Android
+  regressa à lista;
+- **ajustes no fundo da tela**: 🔠 tamanho das letras (Normais, Grandes, Muito grandes) e 🌓 tema;
+- tema da tela **Automático** (segue o telemóvel), **Escuro** ou **Claro**; a escolha fica guardada;
+- ao voltar ao app depois de 20 minutos, abre sempre no separador **Ao vivo**;
+- canais em falta de hoje/amanhã: o app volta a procurá-los de 2 em 2 horas (o site publica-os ao longo do dia);
+- **verificação diária no GitHub** (workflow "Verificação diária"): todos os dias testa a ESPN, os
+  detalhes dos jogos e o site de canais. Se algo deixar de funcionar, abre um aviso em **Issues**
+  no repositório e o GitHub manda-lhe um e-mail. Quando volta a funcionar, o aviso fecha sozinho.
 
 O APK é gerado automaticamente pelo GitHub sempre que o código muda.
 

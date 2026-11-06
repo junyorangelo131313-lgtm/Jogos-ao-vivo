@@ -83,9 +83,6 @@ h1 {
 .sub { margin: 1px 0 0; color: var(--muted); font-size: .78rem; }
 
 /* Tema */
-.theme { display: flex; margin: 12px 0 0; padding: 3px; gap: 3px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
-.theme-opt { flex: 1; background: transparent; border: 0; border-radius: 9px; padding: 6px 4px; font-size: .75rem; color: var(--muted); }
-.theme-opt[aria-pressed="true"] { background: linear-gradient(135deg, var(--accent2), var(--accent)); color: var(--on-accent); font-weight: 700; }
 
 /* Separadores */
 .tabs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin: 10px 0 0; }
@@ -268,3 +265,62 @@ footer { margin-top: 24px; text-align: center; }
 .lv.draw { background: #ca8a04; }
 .lv.loss { background: var(--live); }
 .tabela tr.playing td { background: color-mix(in srgb, var(--accent2) 10%, transparent); }
+
+
+/* ---------- Tamanho das letras (Ajustes) ---------- */
+:root[data-letras="grande"] { font-size: 17.5px; }
+:root[data-letras="enorme"] { font-size: 20px; }
+
+/* ---------- Jogos tocáveis ---------- */
+[data-mid] { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.row[data-mid]:active, .live-card[data-mid]:active, .santos-line[data-mid]:active { filter: brightness(1.15); }
+.row .go { align-self: center; color: var(--muted); font-size: 1.2rem; opacity: .6; }
+
+/* ---------- Os meus times ---------- */
+.fav-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 8px; }
+.fav-chip { font: inherit; font-size: .78rem; font-weight: 700; color: var(--santos-text); background: transparent;
+  border: 1px solid var(--santos); border-radius: 999px; padding: 4px 10px; }
+.fav-chip span { color: var(--muted); margin-left: 3px; }
+.santos-box .hint { margin: 8px 0 0; }
+
+/* ---------- Detalhes do jogo ---------- */
+.detail { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px 12px 10px;
+  margin-top: 8px; box-shadow: var(--shadow); overflow: hidden; }
+.detail::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 4px; background: var(--c); }
+.detail-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--muted); font-size: .78rem; }
+.detail-score { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; margin: 14px 0 6px; text-align: center; }
+.dteam { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
+.dteam b { font-size: 1.05rem; overflow-wrap: anywhere; }
+.dmid { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.big-score { font-size: 2rem; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.big-x { font-size: 1.6rem; color: var(--muted); }
+.detail-ch { text-align: center; color: var(--muted); font-size: .85rem; margin: 6px 0 0; }
+.fav-btn { font: inherit; font-size: .75rem; font-weight: 700; border-radius: 999px; padding: 5px 10px;
+  background: transparent; color: var(--muted); border: 1px solid var(--line); }
+.fav-btn.on { color: var(--santos-text); background: var(--santos-bg); border-color: var(--santos); }
+.events { padding: 4px 12px; }
+.ev { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.ev:last-child { border-bottom: 0; }
+.ev.away { flex-direction: row-reverse; text-align: right; }
+.ev-min { min-width: 3.2ch; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ev-txt { display: flex; flex-direction: column; min-width: 0; }
+.ev-txt small { color: var(--muted); font-size: .72rem; }
+.stats { padding: 8px 12px 10px; }
+.st-head { display: flex; justify-content: space-between; font-size: .75rem; color: var(--muted); font-weight: 700; margin-bottom: 4px; }
+.st { padding: 5px 0; }
+.st-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: .85rem; }
+.st-row span { color: var(--muted); font-size: .75rem; text-align: center; }
+.st-bar { height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--accent2) 30%, transparent); overflow: hidden; margin-top: 3px; }
+.st-bar i { display: block; height: 100%; background: var(--accent); }
+.link { font: inherit; background: none; border: 0; color: var(--accent); text-decoration: underline; padding: 0; font-style: normal; }
+
+/* ---------- Ajustes no rodapé ---------- */
+.settings { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 14px 0 6px; }
+.set-btn { font: inherit; font-size: .8rem; color: var(--text); background: var(--card); border: 1px solid var(--line);
+  border-radius: 12px; padding: 8px 12px; }
+.settings .error { flex-basis: 100%; }
+
+/* Com letras grandes, os separadores não partem em duas linhas: deslizam para o lado. */
+.tabs { overflow-x: auto; scrollbar-width: none; grid-template-columns: repeat(5, minmax(max-content, 1fr)); }
+.tabs::-webkit-scrollbar { display: none; }
+.tab { white-space: nowrap; flex-shrink: 0; }

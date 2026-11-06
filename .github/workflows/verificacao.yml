@@ -1,0 +1,52 @@
+name: Verificação diária
+
+# Todos os dias confirma que a ESPN (jogos e detalhes) e o site de canais continuam a funcionar.
+# Se algo falhar, abre um aviso (issue) no repositório — o GitHub manda-o por e-mail.
+on:
+  schedule:
+    - cron: '23 10 * * *' # todos os dias às 10:23 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Verificar as fontes de dados
+        id: check
+        continue-on-error: true
+        run: node tools/verificar.mjs
+
+      - name: Abrir ou atualizar o aviso
+        if: steps.check.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create verificacao --color d73a4a --description "Aviso automático da verificação diária" --force
+          n=$(gh issue list --state open --label verificacao --json number --jq '.[0].number // empty')
+          if [ -n "$n" ]; then
+            gh issue comment "$n" --body-file relatorio.md
+          else
+            gh issue create --title "⚠️ Jogos ao Vivo: uma fonte de dados deixou de funcionar" --label verificacao --body-file relatorio.md
+          fi
+          exit 1
+
+      - name: Fechar o aviso se voltou a funcionar
+        if: steps.check.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          n=$(gh issue list --state open --label verificacao --json number --jq '.[0].number // empty' 2>/dev/null || true)
+          if [ -n "$n" ]; then
+            gh issue close "$n" --comment "✅ Voltou a funcionar. $(date -u +%F)"
+          fi

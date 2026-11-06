@@ -3,7 +3,10 @@ import { addDays, dayKey, hhmm, shortDate, todayTomorrow, weekday } from './time
 import { fetchEspn } from './sources/espn.js';
 import { fetchFootballData } from './sources/footballdata.js';
 import { fetchChannels } from './channels.js';
-import { calendarDays, isLiveish, isSantos, mergeLive, needsResult, nextLiveDelay, sortMatches } from './logic.js';
+import { calendarDays, isLiveish, mergeLive, needsResult, nextLiveDelay, sortMatches } from './logic.js';
+import * as favorites from './favorites.js';
+import * as notify from './notify.js';
+import * as detalhes from './detalhes.js';
 import * as store from './store.js';
 import * as filmes from './filmes.js';
 import * as update from './update.js';
@@ -13,6 +16,8 @@ const CAL_DAYS = 14;                       // calendário: hoje + 13 dias
 const AGENDA_MAX_AGE = 4 * 60 * 60 * 1000; // agenda: no máximo ~6 vezes por dia
 const LIVE_INTERVAL = 10 * 60 * 1000;      // ao vivo: de 10 em 10 minutos
 const MANUAL_MIN_GAP = 2 * 60 * 1000;      // botão "Atualizar": no máximo de 2 em 2 min
+const CHANNELS_MAX_AGE = 2 * 60 * 60 * 1000; // canais em falta: volta a procurar de 2 em 2 horas
+const BACK_TO_LIVE_AFTER = 20 * 60 * 1000;     // ao voltar ao app depois de 20 min: abre em "Ao vivo"
 const FD_KEY = (window.APP_CONFIG && window.APP_CONFIG.footballDataKey) || '';
 
 let state = store.load();
@@ -28,6 +33,11 @@ let filmesState = filmes.loadCache();
 let filmesBusy = false;
 let filmesError = '';
 let selectedDay = null;    // dia escolhido no calendário
+let openMatch = null;      // id do jogo aberto nos detalhes
+let detailBusy = false;
+let detailError = '';
+let hiddenAt = 0;
+const fav = (m) => favorites.isFavMatch(m);
 
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -86,14 +96,51 @@ async function refreshAgenda() {
   matches = matches.map((m) => ({ ...m, channels: ch[m.id] || oldById.get(m.id)?.channels || [] }));
 
   const missing = failed.filter((l) => !kept.some((m) => m.league === l.key)).map((l) => `${l.name} (${errors[l.key]})`);
-  state = { ...state, matches, today, missing, fetchedAt: Date.now(), liveFetchedAt: Date.now() };
+  state = { ...state, matches, today, missing, fetchedAt: Date.now(), liveFetchedAt: Date.now(), channelsAt: Date.now() };
   store.save(state);
+  favorites.learnIds(matches);
+  syncNotifications();
+}
+
+/** Jogos de hoje e amanhã, ainda por jogar, sem canal. */
+const missingChannels = (now = Date.now()) => {
+  const near = nearDays(now);
+  return state.matches.filter((m) => m.state === 'pre' && Date.parse(m.start) > now
+    && near.includes(dayKey(new Date(m.start))) && !m.channels?.length);
+};
+
+/** Volta a procurar só os canais (o site publica os jogos de amanhã ao longo do dia). */
+async function refreshChannels() {
+  const todo = missingChannels();
+  if (!todo.length) return;
+  const ch = await fetchChannels(todo);
+  state = {
+    ...state,
+    matches: state.matches.map((m) => (ch[m.id] ? { ...m, channels: ch[m.id] } : m)),
+    channelsAt: Date.now(),
+  };
+  store.save(state);
+  if (Object.keys(ch).length) syncNotifications();
+}
+
+const channelsAreOld = () => missingChannels().length && Date.now() - (state.channelsAt || state.fetchedAt || 0) > CHANNELS_MAX_AGE;
+
+let notifInfo = null; // resultado da última marcação de avisos
+async function syncNotifications() {
+  notifInfo = await notify.sync(state.matches, {
+    isFav: fav,
+    leagueName: (k) => leagueByKey(k)?.name || '',
+    channelText: (m) => channelText(m),
+  });
+  renderSettings();
 }
 
 const pendingResults = (now = Date.now()) => state.matches.filter((m) => needsResult(m, now, state.liveFetchedAt || 0));
 
 /** Atualiza placares: jogos a decorrer + jogos que já acabaram e ainda não têm o resultado final. */
 async function refreshLive() {
+  const om = openMatch && state.matches.find((m) => m.id === openMatch);
+  if (om && isLiveish(om)) loadDetail(om, true);
   const now = Date.now();
   const todo = [...state.matches.filter((m) => isLiveish(m, now)), ...pendingResults(now)];
   const keys = [...new Set(todo.map((m) => m.league))];
@@ -150,12 +197,15 @@ function onOpen() {
   render();
   if (agendaIsOld()) run(refreshAgenda);
   else if (pendingResults().length) run(refreshLive); // buscar placares finais que faltam
+  else if (channelsAreOld()) run(refreshChannels);
   else scheduleLive();
 }
 
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) stopLive();
-  else onOpen();
+  if (document.hidden) { stopLive(); hiddenAt = Date.now(); return; }
+  // Depois de muito tempo fora, o app volta a abrir no separador "Ao vivo".
+  if (hiddenAt && Date.now() - hiddenAt > BACK_TO_LIVE_AFTER && !openMatch) { view = 'aovivo'; selectedLeague = null; }
+  onOpen();
 });
 
 /* ---------------- Tela ---------------- */
@@ -173,7 +223,7 @@ function scoreOrX(m) {
 }
 
 function teams(m) {
-  return `${isSantos(m) ? '<span class="star">★</span>' : ''}${esc(m.home.name)} ${scoreOrX(m)} ${esc(m.away.name)}`;
+  return `${fav(m) ? '<span class="star">★</span>' : ''}${esc(m.home.name)} ${scoreOrX(m)} ${esc(m.away.name)}`;
 }
 
 const nearDays = (now) => { const { today, tomorrow } = todayTomorrow(new Date(now)); return [today, tomorrow]; };
@@ -190,7 +240,7 @@ function leagueTag(key) {
 
 function liveCard(m) {
   return `
-    <div class="live-card${isSantos(m) ? ' santos' : ''}" style="--c:${leagueByKey(m.league)?.color || 'var(--accent)'}">
+    <div class="live-card${fav(m) ? ' santos' : ''}" data-mid="${esc(m.id)}" role="button" tabindex="0" style="--c:${leagueByKey(m.league)?.color || 'var(--accent)'}">
       <div class="live-top">${leagueTag(m.league)}<span class="minute"><span class="dot"></span>${esc(m.minute || 'A começar')}</span></div>
       <div class="teams big">${teams(m)}</div>
       <div class="channel">${esc(channelText(m))}</div>
@@ -203,12 +253,13 @@ function row(m, now, { showTbc = true, showLeague = false, showDay = false } = {
   const ch = channelText(m, showTbc);
   const d = dayKey(new Date(m.start));
   return `
-    <div class="row${isSantos(m) ? ' santos' : ''}${m.state === 'done' ? ' done' : ''}${live ? ' live' : ''}">
+    <div class="row${fav(m) ? ' santos' : ''}${m.state === 'done' ? ' done' : ''}${live ? ' live' : ''}" data-mid="${esc(m.id)}" role="button" tabindex="0">
       <div class="time${live ? ' is-live' : ''}">${showDay && !live && m.state !== 'done' ? `<small>${esc(dayLabel(d, now))}</small>` : ''}${esc(time)}</div>
       <div class="info">
         <div class="teams">${teams(m)}</div>
         ${showLeague || ch ? `<div class="channel${m.channels?.length ? '' : ' tbc'}">${showLeague ? leagueTag(m.league) : ''}${esc(ch)}</div>` : ''}
       </div>
+      <span class="go" aria-hidden="true">›</span>
     </div>`;
 }
 
@@ -225,15 +276,20 @@ function leaguesOfDay(key, now, opts = {}) {
   return html;
 }
 
-function santosBox(now) {
-  const list = sortMatches(state.matches.filter((m) => isSantos(m) && m.state !== 'done')).slice(0, 3);
-  if (!list.length) return '';
-  return `<section class="santos-box"><h3><span class="star">★</span>Próximos jogos do Santos</h3>
+function favBox(now) {
+  const favs = favorites.all();
+  const list = sortMatches(state.matches.filter((m) => fav(m) && m.state !== 'done' && m.state !== 'off')).slice(0, 4);
+  const chips = favs.map((f, i) => `<button type="button" class="fav-chip" data-unfav="${i}" aria-label="Deixar de seguir ${esc(f.name)}">★ ${esc(f.name)} <span aria-hidden="true">✕</span></button>`).join('');
+  return `<section class="santos-box"><h3><span class="star">★</span>Os meus times</h3>
+    ${favs.length ? `<div class="fav-chips">${chips}</div>` : ''}
     ${list.map((m) => {
       const d = dayKey(new Date(m.start));
-      return `<div class="santos-line"><b>${esc(dayLabel(d, now))} ${shortDate(d)} · ${hhmm(new Date(m.start))}</b>
+      return `<div class="santos-line" data-mid="${esc(m.id)}" role="button" tabindex="0"><b>${esc(dayLabel(d, now))} ${shortDate(d)} · ${hhmm(new Date(m.start))}</b>
         ${esc(m.home.name)} x ${esc(m.away.name)}${isLiveish(m, now) ? ' <span class="minute">AO VIVO</span>' : ''}</div>`;
-    }).join('')}</section>`;
+    }).join('')}
+    ${favs.length && !list.length ? '<p class="hint">Sem jogos dos seus times nos próximos dias.</p>' : ''}
+    <p class="hint">Toque num jogo para ver os detalhes e seguir um time (★).${notify.available() && notify.enabled() ? ` Recebe um aviso ${notify.BEFORE_MIN} min antes de cada jogo.` : ''}</p>
+  </section>`;
 }
 
 /* Separador 1: só os jogos ao vivo, em destaque */
@@ -251,7 +307,7 @@ function renderAoVivo(now) {
     html += `<h2 class="section-title">A seguir</h2>
       <div class="card">${next.map((m) => row(m, now, { showLeague: true, showDay: true })).join('')}</div>`;
   }
-  return html + santosBox(now);
+  return html + favBox(now);
 }
 
 /* Separador 2: resultados (placar final) de hoje e de ontem */
@@ -314,7 +370,7 @@ function tabelaHtml(l) {
       <thead><tr><th class="pos">#</th><th class="tm">Equipa</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th><th class="pts">Pts</th></tr></thead><tbody>
       ${g.rows.map((r) => {
         if (r.zone?.text) zones.set(r.zone.color, r.zone.text);
-        const santos = /\bsantos\b/i.test(r.team) && !/laguna/i.test(r.team);
+        const santos = favorites.isFavName(r.team);
         const gd = r.gd === null ? '' : r.gd > 0 ? `+${r.gd}` : r.gd;
         const arrow = r.delta > 0 ? `<span class="mv up">▲${r.delta}</span>` : r.delta < 0 ? `<span class="mv down">▼${-r.delta}</span>` : '';
         const live = r.live ? `<span class="lv ${r.live.result}" title="${esc(r.live.minute)}">${r.live.gf}-${r.live.ga}</span>` : '';
@@ -378,7 +434,7 @@ function renderCalendario(now) {
     const d = dayKey(new Date(m.start));
     counts.set(d, (counts.get(d) || 0) + 1);
   }
-  const santosDays = new Set(state.matches.filter(isSantos).map((m) => dayKey(new Date(m.start))));
+  const santosDays = new Set(state.matches.filter(fav).map((m) => dayKey(new Date(m.start))));
   const chips = days.map((d) => `
     <button type="button" class="chip${d === selectedDay ? ' on' : ''}${santosDays.has(d) ? ' has-santos' : ''}" data-day="${d}">
       <span class="chip-wd">${esc(dayLabel(d, now))}</span>
@@ -449,6 +505,158 @@ function renderFilmes() {
   return html;
 }
 
+/* ---------------- Detalhes de um jogo ---------------- */
+
+const EVENT_ICON = { goal: '⚽', pen: '⚽', own: '⚽', yellow: '🟨', red: '🟥' };
+const EVENT_NOTE = { pen: ' (pénalti)', own: ' (contra)' };
+
+function favButton(team) {
+  const on = favorites.isFavTeam(team);
+  return `<button type="button" class="fav-btn${on ? ' on' : ''}" data-fav="${esc(team.id || '')}" data-name="${esc(team.name)}"
+    aria-pressed="${on}">${on ? '★ A seguir' : '☆ Seguir'}</button>`;
+}
+
+async function loadDetail(m, force = false) {
+  if (detailBusy) return;
+  detailBusy = true;
+  detailError = '';
+  try {
+    await detalhes.fetchDetails(m, leagueByKey(m.league), force);
+  } catch (e) {
+    console.warn('detalhes', e);
+    detailError = /indisponíveis/.test(e.message) ? e.message : 'Não foi possível carregar os detalhes.';
+  } finally {
+    detailBusy = false;
+    if (openMatch === m.id) render();
+  }
+}
+
+function renderDetail(m, now) {
+  const l = leagueByKey(m.league);
+  const d = detalhes.cachedDetails(m);
+  if (!d && !detailBusy && !detailError && m.state !== 'pre') loadDetail(m);
+  const live = isLiveish(m, now);
+  const score = d?.score && m.state !== 'pre' ? d.score : m.score;
+  const clock = live ? (d?.clock || m.minute || 'AO VIVO') : m.state === 'done' ? 'Terminado' : m.state === 'off' ? 'Adiado / cancelado' : '';
+  const day = dayKey(new Date(m.start));
+  let html = `<button type="button" class="back" data-close>‹ Voltar</button>
+    <article class="detail" style="--c:${l?.color || 'var(--accent)'}">
+      <div class="detail-top">${leagueTag(m.league)}<span>${esc(dayLabel(day, now))} ${shortDate(day)} · ${hhmm(new Date(m.start))}</span></div>
+      <div class="detail-score">
+        <div class="dteam"><b>${esc(m.home.name)}</b>${favButton(m.home)}</div>
+        <div class="dmid">${score ? `<span class="big-score">${score.home} – ${score.away}</span>` : '<span class="big-x">x</span>'}
+          ${clock ? `<span class="minute">${live ? '<span class="dot"></span>' : ''}${esc(clock)}</span>` : ''}</div>
+        <div class="dteam"><b>${esc(m.away.name)}</b>${favButton(m.away)}</div>
+      </div>
+      <p class="detail-ch">📺 ${esc(channelText(m))}</p>
+    </article>`;
+
+  if (m.state === 'pre') {
+    html += `<div class="card empty-card"><p>O jogo ainda não começou. Os golos e cartões aparecem aqui durante o jogo.</p></div>`;
+  } else if (!d) {
+    html += `<div class="card empty-card"><p>${detailBusy ? 'A carregar os detalhes…' : esc(detailError || 'Sem detalhes.')}</p></div>`;
+  } else {
+    html += '<h2 class="section-title">Lances</h2>';
+    if (d.events.length) {
+      html += `<div class="card events">${d.events.map((e) => `
+        <div class="ev ${e.side || ''}">
+          <span class="ev-min">${esc(e.minute)}</span>
+          <span class="ev-ico">${EVENT_ICON[e.kind]}</span>
+          <span class="ev-txt"><b>${esc(e.player)}</b>${EVENT_NOTE[e.kind] || ''}${e.assist ? `<small>assistência: ${esc(e.assist)}</small>` : ''}
+            <small>${esc(e.side === 'home' ? m.home.name : e.side === 'away' ? m.away.name : '')}</small></span>
+        </div>`).join('')}</div>`;
+    } else {
+      html += '<div class="card empty-card"><p>Sem golos nem cartões até agora.</p></div>';
+    }
+    if (d.stats.length) {
+      html += `<h2 class="section-title">Estatísticas</h2><div class="card stats">
+        <div class="st-head"><span>${esc(m.home.name)}</span><span>${esc(m.away.name)}</span></div>
+        ${d.stats.map((x) => {
+          const a = parseFloat(x.home) || 0; const b = parseFloat(x.away) || 0;
+          const pct = a + b ? Math.round((a / (a + b)) * 100) : 50;
+          return `<div class="st"><div class="st-row"><b>${esc(x.home)}</b><span>${esc(x.label)}</span><b>${esc(x.away)}</b></div>
+            <div class="st-bar"><i style="width:${pct}%"></i></div></div>`;
+        }).join('')}</div>`;
+    }
+    const info = [d.venue && `🏟️ ${d.venue}`, d.referee && `Árbitro: ${d.referee}`, d.attendance && `Público: ${d.attendance.toLocaleString('pt-PT')}`].filter(Boolean);
+    if (info.length) html += `<p class="note">${info.map(esc).join(' · ')}</p>`;
+    html += `<p class="note">Dados: ESPN. <button type="button" class="link" data-reload-detail>Atualizar detalhes</button></p>`;
+  }
+  return html;
+}
+
+function openDetail(id) {
+  if (!state.matches.some((m) => m.id === id)) return;
+  openMatch = id;
+  detailError = '';
+  try { history.pushState({ jogo: id }, ''); } catch { /* sem histórico */ }
+  render();
+  window.scrollTo(0, 0);
+}
+
+function closeDetail(fromHistory = false) {
+  if (!openMatch) return;
+  openMatch = null;
+  if (!fromHistory) { try { history.back(); } catch { /* sem histórico */ } }
+  render();
+}
+
+// Botão "voltar" do Android: fecha os detalhes em vez de sair do app.
+window.addEventListener('popstate', () => closeDetail(true));
+
+/* ---------------- Ajustes (rodapé): letras, tema, avisos ---------------- */
+
+const FONT_KEY = 'jogos-ao-vivo:letras';
+const FONTS = [['normal', 'Normais'], ['grande', 'Grandes'], ['enorme', 'Muito grandes']];
+const THEME_NAMES = { auto: 'Automático', dark: 'Escuro', light: 'Claro' };
+
+function readFont() {
+  try { const f = localStorage.getItem(FONT_KEY); return FONTS.some(([k]) => k === f) ? f : 'normal'; } catch { return 'normal'; }
+}
+function applyFont(f) {
+  if (f === 'normal') document.documentElement.removeAttribute('data-letras');
+  else document.documentElement.setAttribute('data-letras', f);
+}
+applyFont(readFont());
+
+function renderSettings() {
+  const box = $('#settings');
+  if (!box) return;
+  const font = readFont();
+  const theme = globalThis.JogosTema?.get() || 'auto';
+  let avisos = '';
+  if (notify.available()) {
+    const on = notify.enabled();
+    const warn = on && notify.available() && notifInfo?.reason === 'permission'
+      ? '<small class="error">O Android não deixou mostrar avisos. Ative em Definições › Apps › Jogos ao Vivo › Notificações.</small>' : '';
+    avisos = `<button type="button" class="set-btn" data-set="avisos" aria-pressed="${on}">🔔 Avisos: <b>${on ? 'Ligados' : 'Desligados'}</b></button>${warn}`;
+  }
+  box.innerHTML = `
+    <button type="button" class="set-btn" data-set="letras">🔠 Letras: <b>${FONTS.find(([k]) => k === font)[1]}</b></button>
+    <button type="button" class="set-btn" data-set="tema">🌓 Tema: <b>${THEME_NAMES[theme]}</b></button>
+    ${avisos}`;
+}
+
+$('#settings')?.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-set]');
+  if (!b) return;
+  if (b.dataset.set === 'letras') {
+    const i = FONTS.findIndex(([k]) => k === readFont());
+    const next = FONTS[(i + 1) % FONTS.length][0];
+    try { localStorage.setItem(FONT_KEY, next); } catch { /* vale só nesta sessão */ }
+    applyFont(next);
+  } else if (b.dataset.set === 'tema') {
+    const order = ['auto', 'dark', 'light'];
+    const t = globalThis.JogosTema?.get() || 'auto';
+    globalThis.JogosTema?.set(order[(order.indexOf(t) + 1) % order.length]);
+  } else if (b.dataset.set === 'avisos') {
+    notify.setEnabled(!notify.enabled());
+    syncNotifications();
+  }
+  renderSettings();
+  render();
+});
+
 function render() {
   const now = Date.now();
   document.querySelectorAll('.tab').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.view === view)));
@@ -461,7 +669,9 @@ function render() {
       : `<div class="card empty-card"><p>Ainda sem dados. Ligue a internet e toque em “Atualizar”.</p>${message ? `<p class="error">${esc(message)}</p>` : ''}</div>`;
   } else {
     const views = { aovivo: renderAoVivo, resultados: renderResultados, campeonatos: renderCampeonatos, calendario: renderCalendario, filmes: renderFilmes };
-    $('#content').innerHTML = (views[view] || renderAoVivo)(now);
+    const om = openMatch && state.matches.find((m) => m.id === openMatch);
+    if (openMatch && !om) openMatch = null;
+    $('#content').innerHTML = om ? renderDetail(om, now) : (views[view] || renderAoVivo)(now);
     const chip = document.querySelector('.chip.on');
     if (chip) chip.scrollIntoView({ block: 'nearest', inline: 'center' });
   }
@@ -487,12 +697,34 @@ $('#refresh').addEventListener('click', () => {
 
 document.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () => {
   if (b.dataset.view === 'campeonatos' && view === 'campeonatos') selectedLeague = null;
+  if (openMatch) closeDetail();
   view = b.dataset.view;
   render();
   window.scrollTo(0, 0);
 }));
 
 $('#content').addEventListener('click', (e) => {
+  if (e.target.closest('[data-close]')) { closeDetail(); return; }
+  if (e.target.closest('[data-reload-detail]')) {
+    const m = state.matches.find((x) => x.id === openMatch);
+    if (m) { loadDetail(m, true); render(); }
+    return;
+  }
+  const fb = e.target.closest('[data-fav]');
+  if (fb) {
+    favorites.toggle({ id: fb.dataset.fav || null, name: fb.dataset.name });
+    syncNotifications();
+    render();
+    return;
+  }
+  const uf = e.target.closest('[data-unfav]');
+  if (uf) {
+    const f = favorites.all()[Number(uf.dataset.unfav)];
+    if (f && confirm(`Deixar de seguir ${f.name}?`)) { favorites.toggle(f); syncNotifications(); render(); }
+    return;
+  }
+  const mrow = e.target.closest('[data-mid]');
+  if (mrow) { openDetail(mrow.dataset.mid); return; }
   const chip = e.target.closest('.chip');
   const lg = e.target.closest('.league-btn');
   if (lg) leagueTab = 'jogos';
@@ -505,15 +737,11 @@ $('#content').addEventListener('click', (e) => {
   render();
 });
 
-function renderThemeButtons() {
-  const t = globalThis.JogosTema?.get() || 'auto';
-  document.querySelectorAll('.theme-opt').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.theme === t)));
-}
-document.querySelectorAll('.theme-opt').forEach((b) => b.addEventListener('click', () => {
-  globalThis.JogosTema?.set(b.dataset.theme);
-  renderThemeButtons();
-}));
-renderThemeButtons();
+$('#content').addEventListener('keydown', (e) => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-mid]')) { e.preventDefault(); openDetail(e.target.dataset.mid); }
+});
+
+renderSettings();
 
 /* ---------------- Versão nova do app ---------------- */
 
