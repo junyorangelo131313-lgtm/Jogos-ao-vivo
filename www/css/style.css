@@ -236,3 +236,24 @@ footer { margin-top: 24px; text-align: center; }
 .update-actions { display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
 .update-go { background: #fff; color: #047857; font-weight: 800; font-size: .8rem; text-decoration: none; text-align: center; border-radius: 10px; padding: 7px 12px; }
 .update-later { background: none; border: 0; color: #fff; opacity: .85; font-size: .7rem; padding: 2px; }
+
+/* Jogos | Classificação dentro de um campeonato */
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 3px; margin: 0 0 6px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+.seg-btn { background: none; border: 0; border-radius: 9px; padding: 7px 4px; font-size: .8rem; font-weight: 700; color: var(--muted); }
+.seg-btn[aria-selected="true"] { background: linear-gradient(135deg, var(--accent2), var(--accent)); color: var(--on-accent); }
+
+/* Tabela de classificação */
+.table-card { padding: 4px 6px; overflow-x: auto; }
+.tabela { width: 100%; border-collapse: collapse; font-size: .76rem; font-variant-numeric: tabular-nums; }
+.tabela th { color: var(--muted); font-weight: 700; font-size: .66rem; padding: 6px 3px; text-align: center; border-bottom: 1px solid var(--line); }
+.tabela td { padding: 6px 3px; text-align: center; border-bottom: 1px solid var(--line); }
+.tabela tr:last-child td { border-bottom: 0; }
+.tabela .pos { width: 2.4em; text-align: left; white-space: nowrap; font-weight: 700; }
+.tabela .zone { display: inline-block; width: 3px; height: 1.1em; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+.tabela .tm { text-align: left; max-width: 0; width: 100%; }
+.tabela .tm img { width: 16px; height: 16px; object-fit: contain; vertical-align: middle; margin-right: 5px; }
+.tabela .tm span { display: inline-block; max-width: calc(100% - 22px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
+.tabela .pts { font-weight: 800; color: var(--accent); }
+.tabela .santos-row td { background: var(--santos-bg); font-weight: 700; }
+.zones { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 8px 2px 0; font-size: .68rem; color: var(--muted); }
+.zones i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }

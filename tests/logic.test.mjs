@@ -191,3 +191,20 @@ test('aviso de versão nova', async () => {
   assert.ok(shouldOffer(21, 17, 20));           // saiu outra mais nova: volta a avisar
   assert.ok(!shouldOffer(20, 0, undefined));    // sem versão (testes no navegador)
 });
+
+test('classificação: lê a tabela da ESPN', async () => {
+  const { parseStandings } = await import('../www/js/standings.js');
+  const st = (o) => Object.entries(o).map(([name, value]) => ({ name, value }));
+  const g = parseStandings({ children: [{ name: 'Group A1', standings: { entries: [
+    { team: { displayName: 'Itália' }, stats: st({ rank: 2, gamesPlayed: 4, wins: 2, ties: 1, losses: 1, pointsFor: 8, pointsAgainst: 5, pointDifferential: 3, points: 7 }),
+      note: { color: '#B5E7CE', description: 'A: Qualifies for QFs' } },
+    { team: { displayName: 'França' }, stats: st({ rank: 1, gamesPlayed: 4, points: 10 }) },
+  ] } }] });
+  assert.equal(g.length, 1);
+  assert.equal(g[0].name, 'Grupo A1');
+  assert.equal(g[0].rows[0].team, 'França');           // ordenado pela posição
+  assert.equal(g[0].rows[1].points, 7);
+  assert.equal(g[0].rows[1].gd, 3);
+  assert.equal(g[0].rows[1].zone.text, 'A: Quartas de final');
+  assert.deepEqual(parseStandings({ name: 'Copa', seasons: [] }), []); // taça sem tabela
+});

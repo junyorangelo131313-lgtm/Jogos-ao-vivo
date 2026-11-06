@@ -14,7 +14,9 @@ A lista fica em `www/js/leagues.js`. O app mostra:
   próximos 5 jogos;
 - separador **Resultados**: placar final dos jogos que já terminaram hoje e dos de ontem;
 - separador **Campeonatos**: um botão por competição (com o número de jogos e quantos estão ao vivo);
-  toque para ver os jogos dessa competição nos próximos 14 dias;
+  toque para ver os **Jogos** dessa competição nos próximos 14 dias ou a **Classificação**
+  (posição, jogos, vitórias, empates, derrotas, saldo e pontos, com as cores das zonas:
+  Libertadores, Champions, rebaixamento, etc.). Taças a eliminar, como a Copa do Brasil, não têm tabela;
 - separador **Filmes**: ~20 filmes e séries recentes e bem avaliados (nota de 0 a 10), escolhidos
   para o gosto de roubos/golpes, hackers e tecnologia, estratégia, espionagem e guerra, com a plataforma
   quando se sabe (Netflix, Prime Video, etc.). A lista é refeita **uma vez por dia** no GitHub (workflow
