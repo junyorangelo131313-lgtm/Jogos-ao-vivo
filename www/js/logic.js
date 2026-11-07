@@ -20,7 +20,7 @@ export function mergeLive(oldList, fresh) {
   const byId = new Map(fresh.map((m) => [m.id, m]));
   return oldList.map((m) => {
     const n = byId.get(m.id);
-    return n ? { ...m, state: n.state, score: n.score, minute: n.minute } : m;
+    return n ? { ...m, state: n.state, score: n.score, minute: n.minute, goals: n.goals || m.goals || [] } : m;
   });
 }
 
@@ -49,4 +49,16 @@ export function needsResult(m, now = Date.now(), lastFetch = 0) {
   if (m.state !== 'pre' && m.state !== 'live') return false;
   const end = Date.parse(m.start) + RESULT_AFTER_MS;
   return end < now && lastFetch < end;
+}
+
+/** Golos agrupados por jogador e por lado: [{ player, marks: "4', 14' (p)" }] (testado em tests/). */
+export function goalLines(goals, side) {
+  const by = new Map();
+  for (const g of goals || []) {
+    if (g.side !== side) continue;
+    const key = `${g.player}|${g.kind === 'own' ? 'own' : ''}`;
+    if (!by.has(key)) by.set(key, { player: g.player, own: g.kind === 'own', mins: [] });
+    by.get(key).mins.push(g.minute + (g.kind === 'pen' ? ' (pên.)' : ''));
+  }
+  return [...by.values()].map((x) => ({ player: x.player + (x.own ? ' (contra)' : ''), marks: x.mins.join(', ') }));
 }

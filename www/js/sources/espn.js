@@ -38,6 +38,26 @@ function toState(type = {}) {
   return 'pre';
 }
 
+/** Golos do jogo, a partir dos "details" da lista da ESPN (sem pedidos extra). */
+export function parseGoals(details, homeId, awayId) {
+  const out = [];
+  for (const d of details || []) {
+    if (!d?.scoringPlay || d.shootout) continue;
+    const tid = String(d.team?.id ?? '');
+    const side = tid && tid === String(homeId) ? 'home' : tid && tid === String(awayId) ? 'away' : null;
+    if (!side) continue;
+    const a = d.athletesInvolved?.[0] || {};
+    out.push({
+      side,
+      player: a.shortName || a.displayName || '?',
+      minute: d.clock?.displayValue || '',
+      order: Number(d.clock?.value) || 0,
+      kind: d.ownGoal ? 'own' : d.penaltyKick ? 'pen' : 'goal',
+    });
+  }
+  return out.sort((x, y) => x.order - y.order).map(({ order, ...g }) => g);
+}
+
 export function parseEspn(data, league) {
   const out = [];
   for (const ev of data?.events || []) {
@@ -58,6 +78,7 @@ export function parseEspn(data, league) {
       state,
       score: hasScore ? { home: Number(home.score ?? 0), away: Number(away.score ?? 0) } : null,
       minute: state === 'live' ? (status.type?.shortDetail || status.displayClock || '') : '',
+      goals: hasScore ? parseGoals(comp.details, home.team?.id, away.team?.id) : [],
       channels: [],
     });
   }

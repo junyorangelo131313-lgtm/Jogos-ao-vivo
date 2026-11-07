@@ -3,7 +3,7 @@ import { addDays, dayKey, hhmm, shortDate, todayTomorrow, weekday } from './time
 import { fetchEspn } from './sources/espn.js';
 import { fetchFootballData } from './sources/footballdata.js';
 import { fetchChannels } from './channels.js';
-import { calendarDays, isLiveish, mergeLive, needsResult, nextLiveDelay, sortMatches } from './logic.js';
+import { calendarDays, goalLines, isLiveish, mergeLive, needsResult, nextLiveDelay, sortMatches } from './logic.js';
 import * as favorites from './favorites.js';
 import * as notify from './notify.js';
 import * as detalhes from './detalhes.js';
@@ -238,11 +238,20 @@ function leagueTag(key) {
   return `<span class="tag" style="--c:${l?.color || 'var(--accent)'}">${esc(l?.name)}</span>`;
 }
 
+/** Quem marcou: coluna da casa à esquerda, visitante à direita. */
+function goalsHtml(m) {
+  if (!m.goals?.length || !m.score) return '';
+  const col = (side) => goalLines(m.goals, side)
+    .map((g) => `<span>⚽ ${esc(g.player)} <b>${esc(g.marks)}</b></span>`).join('');
+  return `<div class="goals"><div class="gh">${col('home')}</div><div class="ga">${col('away')}</div></div>`;
+}
+
 function liveCard(m) {
   return `
     <div class="live-card${fav(m) ? ' santos' : ''}" data-mid="${esc(m.id)}" role="button" tabindex="0" style="--c:${leagueByKey(m.league)?.color || 'var(--accent)'}">
       <div class="live-top">${leagueTag(m.league)}<span class="minute"><span class="dot"></span>${esc(m.minute || 'A começar')}</span></div>
       <div class="teams big">${teams(m)}</div>
+      ${goalsHtml(m)}
       <div class="channel">${esc(channelText(m))}</div>
     </div>`;
 }
@@ -257,6 +266,7 @@ function row(m, now, { showTbc = true, showLeague = false, showDay = false } = {
       <div class="time${live ? ' is-live' : ''}">${showDay && !live && m.state !== 'done' ? `<small>${esc(dayLabel(d, now))}</small>` : ''}${esc(time)}</div>
       <div class="info">
         <div class="teams">${teams(m)}</div>
+        ${goalsHtml(m)}
         ${showLeague || ch ? `<div class="channel${m.channels?.length ? '' : ' tbc'}">${showLeague ? leagueTag(m.league) : ''}${esc(ch)}</div>` : ''}
       </div>
       <span class="go" aria-hidden="true">›</span>

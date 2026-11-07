@@ -324,3 +324,11 @@ footer { margin-top: 24px; text-align: center; }
 .tabs { overflow-x: auto; scrollbar-width: none; grid-template-columns: repeat(5, minmax(max-content, 1fr)); }
 .tabs::-webkit-scrollbar { display: none; }
 .tab { white-space: nowrap; flex-shrink: 0; }
+
+/* ---------- Quem marcou (nos cartões e nas linhas) ---------- */
+.goals { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; margin: 3px 0 2px; font-size: .74rem; color: var(--muted); }
+.goals > div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.goals .ga { text-align: right; align-items: flex-end; }
+.goals span { overflow-wrap: anywhere; }
+.goals b { color: var(--text); font-weight: 600; }
+.live-card .goals { font-size: .8rem; }

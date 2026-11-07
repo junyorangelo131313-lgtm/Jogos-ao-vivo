@@ -117,7 +117,7 @@ test('ao vivo: deteta jogos a decorrer e agenda a próxima atualização', () =>
 test('atualização ao vivo mantém os canais', () => {
   const old = [{ id: 'x', state: 'pre', score: null, minute: '', channels: ['Globo'] }];
   const merged = mergeLive(old, [{ id: 'x', state: 'live', score: { home: 1, away: 0 }, minute: "12'" }]);
-  assert.deepEqual(merged[0], { id: 'x', state: 'live', score: { home: 1, away: 0 }, minute: "12'", channels: ['Globo'] });
+  assert.deepEqual(merged[0], { id: 'x', state: 'live', score: { home: 1, away: 0 }, minute: "12'", goals: [], channels: ['Globo'] });
 });
 
 test('calendário: dias seguidos e dia da semana', async () => {

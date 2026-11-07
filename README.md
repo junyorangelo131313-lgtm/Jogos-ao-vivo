@@ -40,6 +40,8 @@ A lista fica em `www/js/leagues.js`. O app mostra:
   Na primeira vez o Android pergunta se deixa mostrar notificações: responda **Permitir**.
   Liga/desliga no botão 🔔 no fundo da tela. (Avisos de golo com o app fechado não são possíveis
   sem um servidor pago.);
+- **quem marcou**: nos jogos ao vivo e nos resultados aparece logo, por baixo do placar, quem fez
+  cada golo e em que minuto (pên. = pénalti, contra = golo contra). Atualiza com o placar;
 - **detalhes do jogo**: toque em qualquer jogo para ver golos (com quem marcou e assistência),
   cartões, estatísticas (posse de bola, remates, cantos…) e o estádio. O botão "voltar" do Android
   regressa à lista;

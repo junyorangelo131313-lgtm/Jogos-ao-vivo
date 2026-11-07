@@ -105,3 +105,40 @@ test('detalhes: resposta vazia não rebenta', () => {
   assert.deepEqual(d.stats, []);
   assert.equal(d.score, null);
 });
+
+const { parseGoals } = await import('../www/js/sources/espn.js');
+const { goalLines } = await import('../www/js/logic.js');
+
+test('golos na lista: lê os "details" da ESPN e agrupa por jogador', () => {
+  // Extrato real (Palmeiras x Remo, 05/11/2026)
+  const details = [
+    { type: { text: 'Gol' }, clock: { value: 186, displayValue: "4'" }, team: { id: '2029' }, scoringPlay: true, ownGoal: false, penaltyKick: false, shootout: false, athletesInvolved: [{ displayName: 'Jhon Arias', shortName: 'J. Arias' }] },
+    { type: { text: 'Cartão amarelo' }, clock: { value: 500, displayValue: "9'" }, team: { id: '4936' }, scoringPlay: false, yellowCard: true, athletesInvolved: [{ shortName: 'X' }] },
+    { type: { text: 'Gol' }, clock: { value: 794, displayValue: "14'" }, team: { id: '2029' }, scoringPlay: true, athletesInvolved: [{ shortName: 'J. Arias' }] },
+    { type: { text: 'Gol contra' }, clock: { value: 2120, displayValue: "36'" }, team: { id: '2029' }, scoringPlay: true, ownGoal: true, athletesInvolved: [{ shortName: 'Marcelinho' }] },
+    { type: { text: 'Gol de pênalti' }, clock: { value: 4000, displayValue: "67'" }, team: { id: '4936' }, scoringPlay: true, penaltyKick: true, athletesInvolved: [{ shortName: 'Pedro Rocha' }] },
+  ];
+  const gs = parseGoals(details, '2029', '4936');
+  assert.equal(gs.length, 4);
+  assert.deepEqual(goalLines(gs, 'home'), [
+    { player: 'J. Arias', marks: "4', 14'" },
+    { player: 'Marcelinho (contra)', marks: "36'" },
+  ]);
+  assert.deepEqual(goalLines(gs, 'away'), [{ player: 'Pedro Rocha', marks: "67' (pên.)" }]);
+  assert.deepEqual(parseGoals(undefined, '1', '2'), []);
+});
+
+test('golos: a lista da ESPN guarda-os no jogo e a atualização ao vivo também', async () => {
+  const { parseEspn } = await import('../www/js/sources/espn.js');
+  const { mergeLive } = await import('../www/js/logic.js');
+  const data = { events: [{ id: '7', date: '2026-11-06T20:00Z', status: { type: { state: 'in', shortDetail: "52'" } },
+    competitions: [{ competitors: [
+      { homeAway: 'home', score: '1', team: { id: '10', displayName: 'Santos' } },
+      { homeAway: 'away', score: '0', team: { id: '20', displayName: 'Palmeiras' } }],
+    details: [{ scoringPlay: true, clock: { value: 600, displayValue: "10'" }, team: { id: '10' }, athletesInvolved: [{ shortName: 'Neymar' }] }] }] }] };
+  const [m] = parseEspn(data, { key: 'bra' });
+  assert.deepEqual(m.goals, [{ side: 'home', player: 'Neymar', minute: "10'", kind: 'goal' }]);
+  const merged = mergeLive([{ ...m, goals: [], channels: ['Premiere'] }], [m]);
+  assert.equal(merged[0].goals.length, 1);
+  assert.deepEqual(merged[0].channels, ['Premiere']);
+});
