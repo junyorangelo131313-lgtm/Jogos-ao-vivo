@@ -15,6 +15,11 @@ export const LEAGUES = [
       { from: 17, to: 20, text: 'Rebaixamento', color: '#ef4444' },
     ],
     zonesNote: 'As vagas podem descer uma posição: se o campeão da Copa do Brasil ou da Libertadores já estiver classificado pela tabela, a vaga passa para o seguinte.' },
+  { key: 'brb', name: 'Brasileirão Série B', espn: 'bra.2', fd: null, color: '#a3e635',
+    zones: [
+      { from: 1, to: 4, text: 'Acesso à Série A', color: '#16a34a' },
+      { from: 17, to: 20, text: 'Rebaixamento para a Série C', color: '#ef4444' },
+    ] },
   { key: 'ucl', name: 'Champions League', espn: 'uefa.champions', fd: 'CL', color: '#3b82f6' },
   { key: 'eng', name: 'Premier League', espn: 'eng.1', fd: 'PL', color: '#a855f7' },
   { key: 'esp', name: 'Campeonato Espanhol', espn: 'esp.1', fd: 'PD', color: '#f97316' },

@@ -2,7 +2,7 @@
 
 App Android simples com os jogos destas competições:
 
-- **Ligas:** Brasileirão, Premier League, Campeonato Espanhol, Italiano, Bundesliga,
+- **Ligas:** Brasileirão, Brasileirão Série B, Premier League, Campeonato Espanhol, Italiano, Bundesliga,
   Campeonato Francês, Português e Argentino;
 - **Taças de clubes:** Champions League, Liga Europa, Libertadores, Copa Sul-Americana e Copa do Brasil;
 - **Seleções:** Liga das Nações (UEFA), Eliminatórias da América do Sul, Copa América, Copa do Mundo
