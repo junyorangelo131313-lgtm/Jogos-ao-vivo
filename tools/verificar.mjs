@@ -8,7 +8,7 @@ import { LEAGUES } from '../www/js/leagues.js';
 import { fetchEspn } from '../www/js/sources/espn.js';
 import { fetchChannels } from '../www/js/channels.js';
 import { fetchDetails } from '../www/js/detalhes.js';
-import { dayKey, todayTomorrow } from '../www/js/time.js';
+import { addDays, dayKey, todayTomorrow } from '../www/js/time.js';
 
 // O app corre num navegador; aqui simulamos o necessário para ler o HTML do site de canais.
 globalThis.DOMParser = DOMParser;
@@ -27,7 +27,7 @@ const matches = [];
 const failed = [];
 for (const l of LEAGUES) {
   try {
-    const ms = await fetchEspn(l, today, tomorrow);
+    const ms = await fetchEspn(l, addDays(today, -1), tomorrow); // ontem: para ter golos e detalhes a conferir
     matches.push(...ms);
     log(`- ✅ ${l.name}: ${ms.length} jogo(s)`);
   } catch (e) {
