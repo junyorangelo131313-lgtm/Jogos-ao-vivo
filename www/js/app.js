@@ -11,6 +11,7 @@ import * as store from './store.js';
 import * as filmes from './filmes.js';
 import * as update from './update.js';
 import * as standings from './standings.js';
+const { zoneRange } = standings;
 
 const CAL_DAYS = 14;                       // calendário: hoje + 13 dias
 const AGENDA_MAX_AGE = 4 * 60 * 60 * 1000; // agenda: no máximo ~6 vezes por dia
@@ -370,31 +371,41 @@ function tabelaHtml(l) {
   const now = Date.now();
   const liveMs = state.matches.filter((m) => m.league === l.key && isLiveish(m, now) && m.score);
   const groups = standings.liveTable(c.groups, liveMs);
-  const zones = new Map();
+  const legend = new Map(); // zonas para a legenda (sem repetir)
   let html = groups.some((g) => g.live)
     ? '<p class="live-note"><span class="dot"></span><span>Tabela <b>ao vivo</b>, com os placares dos jogos a decorrer. ▲▼ = lugares que sobe ou desce agora.</span></p>'
     : '';
   for (const g of groups) {
     if (groups.length > 1 && g.name) html += `<h3 class="day-sub">${esc(g.name)}</h3>`;
+    const rules = standings.zoneRules(c.groups.find((x) => x.name === g.name) || g, l);
+    for (const z of rules) legend.set(`${z.text}|${z.from}|${z.to}`, z);
+    let prevZone = null;
     html += `<div class="card table-card"><table class="tabela">
       <thead><tr><th class="pos">#</th><th class="tm">Equipa</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th><th class="pts">Pts</th></tr></thead><tbody>
-      ${g.rows.map((r) => {
-        if (r.zone?.text) zones.set(r.zone.color, r.zone.text);
+      ${g.rows.map((r, i) => {
+        const z = standings.zoneAt(rules, r.liveRank);
+        const border = i > 0 && z !== prevZone ? ' zb' : '';
+        prevZone = z;
         const santos = favorites.isFavName(r.team);
         const gd = r.gd === null ? '' : r.gd > 0 ? `+${r.gd}` : r.gd;
         const arrow = r.delta > 0 ? `<span class="mv up">▲${r.delta}</span>` : r.delta < 0 ? `<span class="mv down">▼${-r.delta}</span>` : '';
         const live = r.live ? `<span class="lv ${r.live.result}" title="${esc(r.live.minute)}">${r.live.gf}-${r.live.ga}</span>` : '';
-        return `<tr class="${santos ? 'santos-row' : ''}${r.live ? ' playing' : ''}">
-          <td class="pos"><span class="zone" style="background:${r.zone?.color || 'transparent'}"></span>${r.liveRank}${arrow}</td>
+        return `<tr class="${santos ? 'santos-row' : ''}${r.live ? ' playing' : ''}${border}"${z ? ` style="--z:${z.color}" title="${esc(z.text)}"` : ''}>
+          <td class="pos"><span class="zone" style="background:${z?.color || 'transparent'}"></span>${r.liveRank}${arrow}</td>
           <td class="tm">${r.logo ? `<img src="${esc(r.logo)}" alt="" loading="lazy">` : ''}<span>${santos ? '★ ' : ''}${esc(r.team)}</span>${live}</td>
           <td>${r.played ?? ''}</td><td>${r.wins ?? ''}</td><td>${r.draws ?? ''}</td><td>${r.losses ?? ''}</td>
           <td>${gd}</td><td class="pts">${r.points ?? ''}</td></tr>`;
       }).join('')}
       </tbody></table></div>`;
   }
-  if (zones.size) {
-    html += `<div class="zones">${[...zones].map(([color, text]) => `<span><i style="background:${color}"></i>${esc(text)}</span>`).join('')}</div>`;
+  if (legend.size) {
+    const items = [...legend.values()].sort((a, b) => a.from - b.from)
+      .map((z) => `<span><i style="background:${z.color}"></i><b>${zoneRange(z)}</b> ${esc(z.text)}</span>`).join('');
+    // A legenda vai para o topo, antes da tabela, para se perceber logo as cores.
+    const first = html.indexOf('<div class="card table-card">') >= 0 ? html.search(/<h3 class="day-sub">|<div class="card table-card">/) : html.length;
+    html = `${html.slice(0, first)}<div class="zones top">${items}</div>${html.slice(first)}`;
   }
+  if (l.zonesNote) html += `<p class="note">${esc(l.zonesNote)}</p>`;
   const when = new Date(c.fetchedAt);
   html += `<p class="note">J jogos · V vitórias · E empates · D derrotas · SG saldo de golos. Atualizada às ${hhmm(when)}.</p>`;
   return html;

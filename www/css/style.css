@@ -332,3 +332,10 @@ footer { margin-top: 24px; text-align: center; }
 .goals span { overflow-wrap: anywhere; }
 .goals b { color: var(--text); font-weight: 600; }
 .live-card .goals { font-size: .8rem; }
+
+/* ---------- Zonas da classificação (Libertadores, Sul-Americana, rebaixamento…) ---------- */
+.tabela .zone { width: 5px; height: 1.3em; }
+.tabela tr.zb td { border-top: 2px solid color-mix(in srgb, var(--text) 22%, transparent); }
+.zones.top { margin: 4px 2px 10px; font-size: .74rem; gap: 6px 14px; }
+.zones.top b { color: var(--text); font-weight: 700; margin-right: 2px; }
+.zones.top i { width: 11px; height: 11px; }

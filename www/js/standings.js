@@ -11,10 +11,44 @@ const PT = [
   [/^Group\s+/i, 'Grupo '], [/^League Phase$/i, 'Fase de liga'],
   [/Qualifies for World Cup/i, 'Classificado para a Copa do Mundo'], [/World Cup Qualifying Playoff|Intercontinental playoff/i, 'Repescagem para a Copa'],
   [/Qualifies for QFs/i, 'Quartas de final'], [/Promotion playoffs?/i, 'Play-off de subida'], [/Relegation playoffs?/i, 'Play-off de descida'],
+  [/Champions League qualifying/i, 'Pré-eliminatória da Champions'], [/Europa League qualifying/i, 'Pré-eliminatória da Liga Europa'],
+  [/Conference League qualifying/i, 'Pré-eliminatória da Conference League'], [/^Europa League$/i, 'Liga Europa'],
+  [/^Conference League$/i, 'Conference League'], [/^Relegated$/i, 'Rebaixamento'],
   [/^Relegation$/i, 'Rebaixamento'], [/^Promotion$/i, 'Subida'], [/Knockout round play-?offs?/i, 'Play-off dos oitavos'],
   [/Round of 16/i, 'Oitavas de final'], [/Eliminated/i, 'Eliminado'],
 ];
 export const toPt = (t) => PT.reduce((acc, [re, rep]) => acc.replace(re, rep), String(t || ''));
+
+// Cores mais fortes (as da ESPN são muito claras), iguais em todas as ligas.
+const ZONE_COLORS = [
+  [/^Champions League$|oitavas de final$/i, '#16a34a'], [/Pré-eliminatória da Champions|Play-off dos oitavos/i, '#86efac'],
+  [/^Liga Europa$/i, '#3b82f6'], [/Pré-eliminatória da Liga Europa/i, '#93c5fd'], [/Conference/i, '#06b6d4'],
+  [/^Rebaixamento$/i, '#ef4444'], [/Play-off de descida/i, '#fb923c'],
+];
+const zoneColor = (text, fallback) => (ZONE_COLORS.find(([re]) => re.test(text)) || [null, fallback])[1];
+
+/**
+ * Zonas por POSIÇÃO (não por equipa): na tabela ao vivo, quem sobe para 4.º fica com a cor do 4.º.
+ * Usa as regras da liga (leagues.js) se existirem; senão, as que a ESPN manda, agrupadas em intervalos.
+ * Devolve [{ from, to, text, color }].
+ */
+export function zoneRules(group, league) {
+  if (league?.zones?.length) return league.zones;
+  const rules = [];
+  for (const r of [...(group?.rows || [])].sort((a, b) => a.rank - b.rank)) {
+    if (!r.zone?.text) continue;
+    const color = zoneColor(r.zone.text, r.zone.color);
+    const last = rules[rules.length - 1];
+    if (last && last.text === r.zone.text && last.to === r.rank - 1) last.to = r.rank;
+    else rules.push({ from: r.rank, to: r.rank, text: r.zone.text, color });
+  }
+  return rules;
+}
+
+export const zoneAt = (rules, pos) => rules.find((z) => pos >= z.from && pos <= z.to) || null;
+
+/** "1.º–4.º" ou "5.º" */
+export const zoneRange = (z) => (z.from === z.to ? `${z.from}.º` : `${z.from}.º–${z.to}.º`);
 
 const num = (v) => (v === undefined || v === null || v === '' ? null : Number(v));
 

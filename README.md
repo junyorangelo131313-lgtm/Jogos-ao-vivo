@@ -15,8 +15,11 @@ A lista fica em `www/js/leagues.js`. O app mostra:
 - separador **Resultados**: placar final dos jogos que já terminaram hoje e dos de ontem;
 - separador **Campeonatos**: um botão por competição (com o número de jogos e quantos estão ao vivo);
   toque para ver os **Jogos** dessa competição nos próximos 14 dias ou a **Classificação**
-  (posição, jogos, vitórias, empates, derrotas, saldo e pontos, com as cores das zonas:
-  Libertadores, Champions, rebaixamento, etc.). Com jogos a decorrer, a tabela fica **ao vivo**: soma os placares atuais,
+  (posição, jogos, vitórias, empates, derrotas, saldo e pontos, com as cores das zonas e a legenda
+  no topo). **Brasileirão:** 1.º–4.º Libertadores, 5.º–6.º Pré-Libertadores, 7.º–12.º Sul-Americana,
+  17.º–20.º rebaixamento (a ESPN não manda estas zonas, por isso estão no app). **Argentino:** 1.º–8.º
+  de cada grupo vão aos playoffs. **Ligas europeias:** Champions, Liga Europa, Conference e rebaixamento,
+  como a ESPN indica. Na tabela ao vivo a cor acompanha a posição (quem sobe para 4.º fica verde). Com jogos a decorrer, a tabela fica **ao vivo**: soma os placares atuais,
   mostra o placar ao lado de quem joga (verde a ganhar, amarelo empate, vermelho a perder) e setas
   ▲▼ com os lugares que cada equipa sobe ou desce. Taças a eliminar, como a Copa do Brasil, não têm tabela;
 - separador **Filmes**: ~20 filmes e séries recentes e bem avaliados (nota de 0 a 10), escolhidos

@@ -142,3 +142,41 @@ test('golos: a lista da ESPN guarda-os no jogo e a atualização ao vivo também
   assert.equal(merged[0].goals.length, 1);
   assert.deepEqual(merged[0].channels, ['Premiere']);
 });
+
+const standings = await import('../www/js/standings.js');
+const { LEAGUES } = await import('../www/js/leagues.js');
+
+test('zonas do Brasileirão: Libertadores, Pré-Libertadores, Sul-Americana e rebaixamento', () => {
+  const bra = LEAGUES.find((l) => l.key === 'bra');
+  const rules = standings.zoneRules({ rows: [] }, bra);
+  const at = (p) => standings.zoneAt(rules, p)?.text || null;
+  assert.equal(at(1), 'Libertadores (fase de grupos)');
+  assert.equal(at(4), 'Libertadores (fase de grupos)');
+  assert.equal(at(5), 'Pré-Libertadores');
+  assert.equal(at(6), 'Pré-Libertadores');
+  assert.equal(at(7), 'Copa Sul-Americana');
+  assert.equal(at(12), 'Copa Sul-Americana');
+  assert.equal(at(13), null);
+  assert.equal(at(16), null);
+  assert.equal(at(17), 'Rebaixamento');
+  assert.equal(at(20), 'Rebaixamento');
+  assert.equal(standings.zoneRange(rules[0]), '1.º–4.º');
+});
+
+test('zonas da ESPN (Premier League real): agrupadas por posição e traduzidas', () => {
+  // Formato real da ESPN (07/11/2026): cada linha tem "note" com cor e descrição em inglês.
+  const data = { children: [{ name: 'Premier', standings: { entries: Array.from({ length: 20 }, (_, i) => ({
+    team: { id: String(i), displayName: `Equipa ${i + 1}` },
+    stats: [{ name: 'rank', value: i + 1 }, { name: 'points', value: 40 - i }],
+    note: i < 4 ? { color: '#81D6AC', description: 'Champions League' } : i === 4 ? { color: '#B5E7CE', description: 'Europa League' }
+      : i >= 17 ? { color: '#FF7F84', description: 'Relegation' } : undefined,
+  })) } }] };
+  const [g] = standings.parseStandings(data);
+  const rules = standings.zoneRules(g, { key: 'eng' });
+  assert.deepEqual(rules.map((z) => [z.from, z.to, z.text]), [
+    [1, 4, 'Champions League'], [5, 5, 'Liga Europa'], [18, 20, 'Rebaixamento'],
+  ]);
+  // Na tabela ao vivo a cor segue a posição: quem está agora em 4.º é "Champions".
+  assert.equal(standings.zoneAt(rules, 4).text, 'Champions League');
+  assert.equal(standings.zoneAt(rules, 6), null);
+});
