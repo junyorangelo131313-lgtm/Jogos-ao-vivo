@@ -39,6 +39,13 @@ if (failed.length > LEAGUES.length / 2) {
   problems.push(`A ESPN falhou em ${failed.length} de ${LEAGUES.length} competições.`);
 }
 
+// 1b) Quem marcou (vem na mesma lista da ESPN)
+const withGoals = matches.filter((m) => m.score && m.score.home + m.score.away > 0);
+const ok = withGoals.filter((m) => (m.goals || []).length);
+log(`- Jogos com golos: ${withGoals.length}; com marcadores lidos: ${ok.length}`);
+for (const m of ok.slice(0, 3)) log(`  - ${m.home.name} ${m.score.home}-${m.score.away} ${m.away.name}: ${m.goals.map((g) => `${g.player} ${g.minute}`).join(', ')}`);
+if (withGoals.length >= 3 && !ok.length) problems.push('Os jogos têm golos mas os marcadores não foram lidos (a ESPN pode ter mudado o formato).');
+
 // 2) Canais (futebolnatv)
 log();
 log('## Canais de TV (futebolnatv.com.br)');
