@@ -6,7 +6,8 @@ import { writeFileSync, appendFileSync } from 'node:fs';
 import { DOMParser, NodeFilter } from 'linkedom';
 import { LEAGUES } from '../www/js/leagues.js';
 import { fetchEspn } from '../www/js/sources/espn.js';
-import { fetchChannels } from '../www/js/channels.js';
+import { fetchChannels, extractBlocks, PAGES } from '../www/js/channels.js';
+import { getText } from '../www/js/http.js';
 import { fetchDetails } from '../www/js/detalhes.js';
 import { addDays, dayKey, todayTomorrow } from '../www/js/time.js';
 
@@ -55,7 +56,18 @@ try {
   const found = Object.keys(ch).length;
   log(`- Jogos de hoje/amanhã por jogar: ${near.length}; com canal encontrado: ${found}`);
   for (const m of near.filter((x) => ch[x.id]).slice(0, 8)) log(`  - ${m.home.name} x ${m.away.name}: ${ch[m.id].join(', ')}`);
-  if (near.length >= 6 && found === 0) problems.push('O site de canais respondeu, mas nenhum canal foi encontrado (o site pode ter mudado o layout).');
+  // Só as ligas principais passam sempre na TV brasileira; taças pequenas (ex.: FA Cup) muitas vezes não.
+  const MAIN = new Set(['bra', 'brb', 'ucl', 'uel', 'eng', 'esp', 'ita', 'ger', 'fra', 'por', 'lib', 'sud', 'cdb', 'arg']);
+  const mainNear = near.filter((m) => MAIN.has(m.league));
+  const mainFound = mainNear.filter((m) => ch[m.id]).length;
+  log(`- Das ligas principais: ${mainNear.length} jogo(s), ${mainFound} com canal`);
+  try {
+    const html = await getText(PAGES[0], { 'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/124.0 Mobile Safari/537.36' });
+    const blocks = extractBlocks(html);
+    log(`- Blocos de jogo lidos na página de hoje: ${blocks.length}`);
+    for (const b of blocks.slice(0, 3)) log(`  - ${b.raw.slice(0, 140)}`);
+  } catch (e) { log(`- (não foi possível ler a página: ${e.message})`); }
+  if (mainNear.length >= 3 && mainFound === 0) problems.push('O site de canais respondeu, mas nenhum canal foi encontrado nos jogos das ligas principais (o site pode ter mudado o layout).');
 } catch (e) {
   log(`- ❌ ${e.message}`);
   if (near.length) problems.push(`Site de canais indisponível: ${e.message}`);
