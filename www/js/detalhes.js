@@ -1,8 +1,8 @@
 // Detalhes de um jogo (golos, cartões, estatísticas, estádio), vindos do "summary" da ESPN.
 // Só é pedido quando se toca num jogo.
-import { getJson } from './http.js';
+import { espnJson } from './espnhost.js';
 
-const BASE = 'https://site.api.espn.com/apis/site/v2/sports/soccer';
+const PATH = '/apis/site/v2/sports/soccer';
 const cache = new Map(); // id do jogo -> { at, data }
 
 export const espnEventId = (m) => (String(m.id).startsWith('espn:') ? String(m.id).slice(5) : null);
@@ -87,8 +87,7 @@ export async function fetchDetails(m, league, force = false) {
   const ttl = m.state === 'live' ? 2 * 60 * 1000 : 12 * 60 * 60 * 1000;
   const c = cache.get(m.id);
   if (!force && c && Date.now() - c.at < ttl) return c.data;
-  const url = `${BASE}/${league.espn}/summary?event=${encodeURIComponent(id)}&lang=pt&region=br`;
-  const data = parseSummary(await getJson(url));
+  const data = parseSummary(await espnJson(`${PATH}/${league.espn}/summary?event=${encodeURIComponent(id)}&lang=pt&region=br`));
   cache.set(m.id, { at: Date.now(), data });
   return data;
 }

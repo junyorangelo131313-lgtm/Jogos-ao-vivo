@@ -1,18 +1,20 @@
 // Fonte principal: placares públicos da ESPN (grátis, sem chave, inclui o
 // Campeonato Argentino e o minuto do jogo ao vivo).
-import { getJson } from '../http.js';
+import { espnJson, rememberSeason, seasonPlan, HOSTS } from '../espnhost.js';
 import { addDays } from '../time.js';
 import { keepMatch } from '../leagues.js';
 
-const BASE = 'https://site.api.espn.com/apis/site/v2/sports/soccer';
+const PATH = '/apis/site/v2/sports/soccer';
 
 /** URL de um dia (fromKey === toKey) ou de um período. */
-export function espnUrl(league, fromKey, toKey = fromKey, localized = true) {
+export function espnPath(league, fromKey, toKey = fromKey, localized = true) {
   const d = (k) => k.replaceAll('-', '');
   const dates = fromKey === toKey ? d(fromKey) : `${d(fromKey)}-${d(toKey)}`;
   const lang = localized ? '&lang=pt&region=br' : '';
-  return `${BASE}/${league.espn}/scoreboard?dates=${dates}${lang}`;
+  return `${PATH}/${league.espn}/scoreboard?dates=${dates}${lang}`;
 }
+
+export const espnUrl = (...a) => HOSTS[0] + espnPath(...a);
 
 /** Lista de dias entre duas chaves AAAA-MM-DD (inclusive). */
 export function daysBetween(fromKey, toKey) {
@@ -99,21 +101,24 @@ async function limited(fn) {
   }
 }
 
-async function getEvents(url) {
-  const data = await limited(() => getJson(url));
+async function getEvents(path) {
+  const data = await limited(() => espnJson(path));
   if (!Array.isArray(data?.events)) throw new Error(data?.message ? `ESPN: ${data.message}` : 'resposta sem jogos');
   return data;
 }
 
 /** Um dia: tenta com português e, se falhar, sem idioma/região. */
 async function fetchDay(league, key) {
+  let data;
   try {
-    return parseEspn(await getEvents(espnUrl(league, key)), league);
+    data = await getEvents(espnPath(league, key));
   } catch (e) {
     try {
-      return parseEspn(await getEvents(espnUrl(league, key, key, false)), league);
+      data = await getEvents(espnPath(league, key, key, false));
     } catch { throw e; }
   }
+  rememberSeason(league.key, data);
+  return parseEspn(data, league);
 }
 
 // A ESPN deixou de aceitar períodos ("dates=AAAAMMDD-AAAAMMDD" responde HTTP 400).
@@ -123,10 +128,17 @@ let rangeWorks = true;
 const PARALLEL_DAYS = 16; // o limite real é o MAX_PARALLEL acima
 
 export async function fetchEspn(league, fromKey, toKey) {
+  // Fora de época (ex.: Estaduais em novembro): não pede nada, ou só um dia para reconfirmar.
+  const plan = seasonPlan(league.key, fromKey, toKey);
+  if (plan === 'skip') return [];
+  if (plan === 'probe') {
+    const ms = await fetchDay(league, fromKey); // um só pedido, que atualiza a época
+    if (seasonPlan(league.key, fromKey, toKey) !== 'full') return ms; // continua fora de época
+  }
   if (fromKey === toKey) return fetchDay(league, fromKey);
   if (rangeWorks) {
     try {
-      return parseEspn(await getEvents(espnUrl(league, fromKey, toKey)), league);
+      return parseEspn(await getEvents(espnPath(league, fromKey, toKey)), league);
     } catch (e) {
       if (!/^HTTP 4|ESPN:/.test(e.message)) throw e; // sem internet: não adianta insistir
       rangeWorks = false;

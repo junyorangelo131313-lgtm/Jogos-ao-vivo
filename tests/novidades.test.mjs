@@ -180,3 +180,22 @@ test('zonas da ESPN (Premier League real): agrupadas por posição e traduzidas'
   assert.equal(standings.zoneAt(rules, 4).text, 'Champions League');
   assert.equal(standings.zoneAt(rules, 6), null);
 });
+
+const espnhost = await import('../www/js/espnhost.js');
+
+test('épocas: lê o calendário da ESPN e evita pedidos fora de época', () => {
+  // Formato real (Paulistão, 10/11/2026): calendário de 10/01 a 08/03.
+  const data = { leagues: [{ season: { year: 2026 }, calendar: [{ startDate: '2026-01-10T08:00Z' }, { endDate: '2026-03-08T08:00Z' }] }] };
+  assert.deepEqual(espnhost.seasonOf(data), { start: '2026-01-10', end: '2026-03-08' });
+  assert.equal(espnhost.seasonOf({}), null);
+  const win = { start: '2026-01-10', end: '2026-03-08' };
+  assert.equal(espnhost.outOfSeason(win, '2026-11-08', '2026-11-24'), true);
+  assert.equal(espnhost.outOfSeason(win, '2026-01-05', '2026-01-20'), false); // apanha o início
+  assert.equal(espnhost.outOfSeason(win, '2026-03-10', '2026-03-20'), false); // folga de 3 dias no fim
+  const now = Date.parse('2026-11-10T10:00:00Z');
+  espnhost._setSeasons({ pau: { ...win, at: now - 60 * 60 * 1000 }, old: { ...win, at: now - 5 * 24 * 3600e3 } });
+  assert.equal(espnhost.seasonPlan('pau', '2026-11-08', '2026-11-24', now), 'skip');
+  assert.equal(espnhost.seasonPlan('old', '2026-11-08', '2026-11-24', now), 'probe');
+  assert.equal(espnhost.seasonPlan('bra', '2026-11-08', '2026-11-24', now), 'full');
+  espnhost._setSeasons({});
+});

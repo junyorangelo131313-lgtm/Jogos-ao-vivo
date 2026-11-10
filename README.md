@@ -2,9 +2,12 @@
 
 App Android simples com os jogos destas competições:
 
+- **Estaduais:** Paulistão, Carioca, Mineiro e Gaúcho (jogam de janeiro a março/abril);
+- **Outras ligas:** Liga Saudita e MLS (EUA);
 - **Ligas:** Brasileirão, Brasileirão Série B, Premier League, Campeonato Espanhol, Italiano, Bundesliga,
   Campeonato Francês, Português e Argentino;
-- **Taças de clubes:** Champions League, Liga Europa, Libertadores, Copa Sul-Americana e Copa do Brasil;
+- **Taças de clubes:** Champions League, Liga Europa, Libertadores, Copa Sul-Americana, Recopa Sul-Americana, Copa do Brasil
+  e as taças nacionais de Portugal, Espanha, Inglaterra, Itália, Alemanha e França;
 - **Seleções:** Liga das Nações (UEFA), Eliminatórias da América do Sul, Copa América, Copa do Mundo
   e amistosos das seleções da América do Sul (Brasil, Argentina, Uruguai, etc.).
 
@@ -219,3 +222,10 @@ tests/               testes (npm test)
 ```
 
 Comandos: `npm ci`, `npm test`, `npx cap sync android`.
+
+### Poupança de pedidos à ESPN
+
+- Competições fora de época (ex.: Estaduais em novembro) não fazem pedidos; o app só reconfirma a época de 3 em 3 dias.
+- Os dias distantes do calendário (de daqui a 3 dias em diante) são pedidos uma vez por dia; as atualizações das 4 em 4 horas
+  pedem só ontem, hoje, amanhã e depois.
+- Se o servidor principal da ESPN bloquear ("Access Denied"), o app passa sozinho para o servidor alternativo.

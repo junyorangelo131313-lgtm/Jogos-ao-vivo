@@ -1,8 +1,8 @@
 // Classificação dos campeonatos (ESPN, grátis, sem chave).
 // É pedida só quando se abre a classificação de um campeonato e fica guardada 6 horas.
-import { getJson } from './http.js';
+import { espnJson } from './espnhost.js';
 
-const BASE = 'https://site.api.espn.com/apis/v2/sports/soccer';
+const PATH = '/apis/v2/sports/soccer';
 const KEY = 'jogos-ao-vivo:tabela:v1';
 const MAX_AGE = 6 * 60 * 60 * 1000;
 
@@ -145,9 +145,9 @@ export async function fetchStandings(league, force = false) {
   if (!force && c && Date.now() - c.fetchedAt < MAX_AGE) return c;
   let data;
   try {
-    data = await getJson(`${BASE}/${league.espn}/standings?lang=pt&region=br`);
+    data = await espnJson(`${PATH}/${league.espn}/standings?lang=pt&region=br`);
   } catch {
-    data = await getJson(`${BASE}/${league.espn}/standings`);
+    data = await espnJson(`${PATH}/${league.espn}/standings`);
   }
   const groups = parseStandings(data);
   const entry = { groups, fetchedAt: Date.now() };

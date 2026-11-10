@@ -14,6 +14,7 @@ import * as standings from './standings.js';
 const { zoneRange } = standings;
 
 const CAL_DAYS = 14;                       // calendário: hoje + 13 dias
+const FAR_MAX_AGE = 24 * 60 * 60 * 1000;       // dias distantes do calendário: uma vez por dia
 const AGENDA_MAX_AGE = 4 * 60 * 60 * 1000; // agenda: no máximo ~6 vezes por dia
 const LIVE_INTERVAL = 10 * 60 * 1000;      // ao vivo: de 10 em 10 minutos
 const MANUAL_MIN_GAP = 2 * 60 * 1000;      // botão "Atualizar": no máximo de 2 em 2 min
@@ -71,7 +72,11 @@ async function refreshAgenda() {
   const lastDay = addDays(today, CAL_DAYS - 1);
   // A ESPN usa o dia dos EUA, que vai atrás do de Portugal: para ter os jogos de ontem (de Portugal)
   // é preciso pedir também o dia anterior.
-  const { matches: fresh, failed, errors } = await loadLeagues(LEAGUES, addDays(today, -2), lastDay);
+  // Os dias mais distantes (daqui a 3 dias ou mais) mudam pouco: pedimos uma vez por dia.
+  // Nas outras atualizações só ontem, hoje, amanhã e depois — muito menos pedidos à ESPN.
+  const nearEnd = addDays(today, 2);
+  const farFresh = state.farAt && Date.now() - state.farAt < FAR_MAX_AGE;
+  const { matches: fresh, failed, errors } = await loadLeagues(LEAGUES, addDays(today, -2), farFresh ? nearEnd : lastDay);
   if (failed.length === LEAGUES.length) {
     const why = Object.values(errors)[0] || '';
     throw new Error(`Não foi possível ligar ao servidor dos jogos${why ? ` (${why})` : ''}.`);
@@ -81,7 +86,8 @@ async function refreshAgenda() {
   const failedKeys = new Set(failed.map((l) => l.key));
   const kept = state.matches.filter((m) => failedKeys.has(m.league));
   const seen = new Set();
-  let matches = [...fresh, ...kept]
+  const keptFar = farFresh ? state.matches.filter((m) => dayKey(new Date(m.start)) > nearEnd) : [];
+  let matches = [...fresh, ...kept, ...keptFar]
     .filter((m) => { const d = dayKey(new Date(m.start)); return d >= yesterday && d <= lastDay; })
     .filter((m) => !seen.has(m.id) && seen.add(m.id));
 
@@ -97,7 +103,8 @@ async function refreshAgenda() {
   matches = matches.map((m) => ({ ...m, channels: ch[m.id] || oldById.get(m.id)?.channels || [] }));
 
   const missing = failed.filter((l) => !kept.some((m) => m.league === l.key)).map((l) => `${l.name} (${errors[l.key]})`);
-  state = { ...state, matches, today, missing, fetchedAt: Date.now(), liveFetchedAt: Date.now(), channelsAt: Date.now() };
+  state = { ...state, matches, today, missing, fetchedAt: Date.now(), liveFetchedAt: Date.now(), channelsAt: Date.now(),
+    farAt: farFresh ? state.farAt : Date.now() };
   store.save(state);
   favorites.learnIds(matches);
   syncNotifications();
