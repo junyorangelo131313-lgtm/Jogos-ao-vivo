@@ -339,3 +339,14 @@ footer { margin-top: 24px; text-align: center; }
 .zones.top { margin: 4px 2px 10px; font-size: .74rem; gap: 6px 14px; }
 .zones.top b { color: var(--text); font-weight: 700; margin-right: 2px; }
 .zones.top i { width: 11px; height: 11px; }
+
+/* ---------- Página principal: competições que abrem e fecham ---------- */
+details.league { margin-top: 14px; }
+details.league > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px;
+  font-size: .8rem; font-weight: 700; margin: 0 0 6px; color: var(--c); text-transform: uppercase; letter-spacing: .05em; -webkit-tap-highlight-color: transparent; }
+details.league > summary small { text-transform: none; letter-spacing: 0; }
+details.league > summary::-webkit-details-marker { display: none; }
+details.league > summary small { color: var(--muted); font-weight: 400; font-size: .75rem; }
+details.league > summary::after { content: "▾"; margin-left: auto; color: var(--muted); transition: transform .15s; }
+details.league:not([open]) > summary::after { transform: rotate(-90deg); }
+details.league:not([open]) > summary { opacity: .85; }

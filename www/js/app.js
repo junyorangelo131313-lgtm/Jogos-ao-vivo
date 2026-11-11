@@ -13,7 +13,8 @@ import * as update from './update.js';
 import * as standings from './standings.js';
 const { zoneRange } = standings;
 
-const CAL_DAYS = 14;                       // calendário: hoje + 13 dias
+const CAL_DAYS = 14;
+const COLLAPSE_OVER = 10;                  // mais jogos do que isto num dia: a competição começa fechada                       // calendário: hoje + 13 dias
 const FAR_MAX_AGE = 24 * 60 * 60 * 1000;       // dias distantes do calendário: uma vez por dia
 const AGENDA_MAX_AGE = 4 * 60 * 60 * 1000; // agenda: no máximo ~6 vezes por dia
 const LIVE_INTERVAL = 10 * 60 * 1000;      // ao vivo: de 10 em 10 minutos
@@ -288,8 +289,16 @@ function leaguesOfDay(key, now, opts = {}) {
   for (const l of LEAGUES) {
     const list = sortMatches(ofDay.filter((m) => m.league === l.key));
     if (!list.length) continue;
-    html += `<section class="league" style="--c:${l.color}"><h3><span class="ldot"></span>${esc(l.name)}</h3>
-      <div class="card">${list.map((m) => row(m, now, opts)).join('')}</div></section>`;
+    const rows = `<div class="card">${list.map((m) => row(m, now, opts)).join('')}</div>`;
+    if (opts.collapse) {
+      // Competições com muitos jogos (ex.: taças com divisões baixas) ficam fechadas;
+      // abrem sempre se houver jogo ao vivo ou de um time favorito.
+      const open = list.length <= COLLAPSE_OVER || list.some((m) => fav(m) || isLiveish(m, now));
+      html += `<details class="league" style="--c:${l.color}"${open ? ' open' : ''}>
+        <summary><span class="ldot"></span>${esc(l.name)} <small>${list.length} jogo${list.length > 1 ? 's' : ''}</small></summary>${rows}</details>`;
+    } else {
+      html += `<section class="league" style="--c:${l.color}"><h3><span class="ldot"></span>${esc(l.name)}</h3>${rows}</section>`;
+    }
   }
   return html;
 }
@@ -320,12 +329,18 @@ function renderAoVivo(now) {
   } else {
     html += '<div class="card empty-card"><p>Nenhum jogo a decorrer agora.</p></div>';
   }
-  const next = sortMatches(state.matches.filter((m) => m.state === 'pre' && Date.parse(m.start) > now)).slice(0, 5);
-  if (next.length) {
-    html += `<h2 class="section-title">A seguir</h2>
-      <div class="card">${next.map((m) => row(m, now, { showLeague: true, showDay: true })).join('')}</div>`;
-  }
-  return html + favBox(now);
+  html += favBox(now);
+  // Todos os jogos de todas as competições: hoje, amanhã e os resultados de ontem.
+  const [today, tomorrow] = nearDays(now);
+  const yesterday = addDays(today, -1);
+  html += `<h2 class="section-title">Hoje <small>${shortDate(today)}</small></h2>
+    ${leaguesOfDay(today, now, { collapse: true, emptyText: 'Sem jogos hoje.' })}
+    <h2 class="section-title">Amanhã <small>${shortDate(tomorrow)}</small></h2>
+    ${leaguesOfDay(tomorrow, now, { collapse: true, emptyText: 'Sem jogos amanhã.' })}
+    <h2 class="section-title">Ontem <small>${shortDate(yesterday)} · resultados</small></h2>
+    ${leaguesOfDay(yesterday, now, { collapse: true, showTbc: false, emptyText: 'Sem jogos ontem.' })}
+    <p class="note">Toque num campeonato para abrir ou fechar. Os que têm muitos jogos começam fechados.</p>`;
+  return html;
 }
 
 /* Separador 2: resultados (placar final) de hoje e de ontem */

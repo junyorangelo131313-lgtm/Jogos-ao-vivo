@@ -13,8 +13,9 @@ App Android simples com os jogos destas competições:
 
 A lista fica em `www/js/leagues.js`. O app mostra:
 
-- separador **Ao vivo**: só os jogos a decorrer, em destaque (placar e minuto), e por baixo os
-  próximos 5 jogos;
+- separador **Jogos** (página principal): os jogos a decorrer em destaque e, por baixo, **todos** os jogos
+  de hoje, de amanhã e os resultados de ontem, de todas as competições, separados por campeonato
+  (as competições com mais de 10 jogos no dia começam fechadas; toque para abrir);
 - separador **Resultados**: placar final dos jogos que já terminaram hoje e dos de ontem;
 - separador **Campeonatos**: um botão por competição (com o número de jogos e quantos estão ao vivo);
   toque para ver os **Jogos** dessa competição nos próximos 14 dias ou a **Classificação**
