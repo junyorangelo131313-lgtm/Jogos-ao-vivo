@@ -3,7 +3,7 @@ import { addDays, dayKey, hhmm, shortDate, todayTomorrow, weekday } from './time
 import { fetchEspn } from './sources/espn.js';
 import { fetchFootballData } from './sources/footballdata.js';
 import { fetchChannels } from './channels.js';
-import { calendarDays, goalLines, isLiveish, mergeLive, needsResult, nextLiveDelay, sortMatches } from './logic.js';
+import { calendarDays, goalLines, isLiveish, leaguesByKickoff, mergeLive, needsResult, nextLiveDelay, sortMatches } from './logic.js';
 import * as favorites from './favorites.js';
 import * as notify from './notify.js';
 import * as detalhes from './detalhes.js';
@@ -286,7 +286,8 @@ function leaguesOfDay(key, now, opts = {}) {
   const ofDay = state.matches.filter((m) => dayKey(new Date(m.start)) === key && (!opts.only || opts.only(m)));
   if (!ofDay.length) return `<p class="empty">${opts.emptyText || 'Sem jogos neste dia.'}</p>`;
   let html = '';
-  for (const l of LEAGUES) {
+  // Por ordem de horário: primeiro o campeonato cujo jogo começa mais cedo.
+  for (const l of leaguesByKickoff(ofDay, LEAGUES)) {
     const list = sortMatches(ofDay.filter((m) => m.league === l.key));
     if (!list.length) continue;
     const rows = `<div class="card">${list.map((m) => row(m, now, opts)).join('')}</div>`;

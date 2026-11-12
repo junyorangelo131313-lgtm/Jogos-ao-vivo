@@ -71,6 +71,7 @@ O APK é gerado automaticamente pelo GitHub sempre que o código muda.
 | Jogos, placares e minuto ao vivo (todas as competições) | ESPN (dados públicos) | Não |
 | Reserva, se a ESPN falhar (só Brasileirão, Champions, 6 ligas europeias e Copa do Mundo) | football-data.org, plano grátis | Sim (opcional) |
 | Canais de TV do Brasil | futebolnatv.com.br | Não |
+| Canais de TV do Brasil (reserva, para os jogos que o primeiro não lista) | futebolaovivobrasil.com | Não |
 
 **Porque não a API-Football?** O plano grátis da API-Football só libera **temporadas antigas**
 (as temporadas atuais respondem com erro de plano). Com ela, o app não mostraria os jogos de hoje.

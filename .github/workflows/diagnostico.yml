@@ -17,7 +17,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+      - run: npm ci
       - name: Sonda dos códigos das competições
         run: node tools/sonda-codigos.mjs
       - name: Testar as fontes de dados
         run: node tools/diagnostico.mjs
+      - name: Canais por fonte (jogos de hoje e de amanhã)
+        run: node tools/sonda-canais.mjs
