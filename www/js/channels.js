@@ -171,7 +171,8 @@ export function extractArticles(html) {
     const body = art.split(/<\/article>/i)[0];
     const ts = Number((head.match(/data-ts="(\d{9,11})"/) || [])[1]);
     const nomes = [...body.matchAll(/class="m-name"[^>]*>([^<]+)</g)].map((m) => m[1]);
-    const canais = [...(body.split(/class="m-channels"/)[1] || '').matchAll(/<b[^>]*>([^<]+)<\/b>/g)].map((m) => m[1]);
+    // todo o texto da zona dos canais (não só os <b>): alguns canais vêm em links ou noutras marcas
+    const canais = [untag('<' + (body.split(/class="m-channels"/)[1] || '').split(/<button\b/i)[0])];
     if (!ts || nomes.length < 2) continue;
     const raw = untag(`${hhmm(new Date(ts * 1000), TZ_BR)} ${nomes[0]} ${nomes[1]} ${canais.join(' ')}`);
     blocks.push({ raw, text: normalize(raw), ts: ts * 1000 });
