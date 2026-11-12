@@ -3,8 +3,7 @@ name: Diagnóstico
 on:
   workflow_dispatch:
   push:
-    branches: [claude/apk-download-request-wjf5m3, canais-fontes]
-    paths: ['tools/**', '.github/workflows/diagnostico.yml']
+    branches: [claude/apk-download-request-wjf5m3]
 
 permissions:
   contents: read
@@ -20,5 +19,9 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Sonda dos canais (fontes alternativas)
+      - name: Sonda dos códigos das competições
+        run: node tools/sonda-codigos.mjs
+      - name: Testar as fontes de dados
+        run: node tools/diagnostico.mjs
+      - name: Canais por fonte (jogos de hoje e de amanhã)
         run: node tools/sonda-canais.mjs
