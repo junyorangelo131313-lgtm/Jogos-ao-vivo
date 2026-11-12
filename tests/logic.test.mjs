@@ -4,7 +4,7 @@ import { dayKey, hhmm, addDays, todayTomorrow, TZ_BR } from '../www/js/time.js';
 import { parseEspn } from '../www/js/sources/espn.js';
 import { parseFootballData } from '../www/js/sources/footballdata.js';
 import { normalize, teamScore, findChannels, bestBlock } from '../www/js/channels.js';
-import { isLiveish, isSantos, mergeLive, nextLiveDelay } from '../www/js/logic.js';
+import { isLiveish, isSantos, mergeLive, nextLiveDelay, leaguesByKickoff } from '../www/js/logic.js';
 import { LEAGUES } from '../www/js/leagues.js';
 
 test('horário de Portugal com horário de verão automático', () => {
@@ -226,4 +226,16 @@ test('tabela ao vivo: soma o placar a decorrer e mostra quem sobe/desce', async 
   assert.equal(g.rows[3].delta, 0);
   // sem jogos a decorrer: tabela igual à oficial
   assert.ok(!liveTable(groups, [])[0].live);
+});
+
+test('campeonatos do dia por ordem de horário do primeiro jogo', () => {
+  const ligas = [{ key: 'bra.2' }, { key: 'fra.cup' }, { key: 'eng.1' }, { key: 'esp.1' }];
+  const jogos = [
+    { league: 'bra.2', start: '2026-11-12T22:00:00Z' },
+    { league: 'fra.cup', start: '2026-11-12T20:00:00Z' },
+    { league: 'fra.cup', start: '2026-11-12T18:00:00Z' },
+    { league: 'eng.1', start: '2026-11-12T22:00:00Z' },
+  ];
+  // Taça da França (18:00) antes da Série B (22:00); empate às 22:00 mantém a ordem da lista; sem jogos fica de fora
+  assert.deepEqual(leaguesByKickoff(jogos, ligas).map((l) => l.key), ['fra.cup', 'bra.2', 'eng.1']);
 });

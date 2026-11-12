@@ -15,6 +15,19 @@ export function sortMatches(list) {
   return [...list].sort((a, b) => Date.parse(a.start) - Date.parse(b.start) || a.home.name.localeCompare(b.home.name));
 }
 
+/** Campeonatos de um dia pela hora do primeiro jogo (o das 18:00 antes do das 22:00); empate: a ordem da lista de campeonatos. */
+export function leaguesByKickoff(matches, leagues) {
+  const first = new Map();
+  for (const m of matches) {
+    const t = Date.parse(m.start);
+    if (!first.has(m.league) || t < first.get(m.league)) first.set(m.league, t);
+  }
+  return leagues.filter((l) => first.has(l.key))
+    .map((l, i) => ({ l, i, t: first.get(l.key) }))
+    .sort((a, b) => a.t - b.t || a.i - b.i)
+    .map((x) => x.l);
+}
+
 /** Atualiza placar/minuto dos jogos antigos com os dados novos, sem perder os canais. */
 export function mergeLive(oldList, fresh) {
   const byId = new Map(fresh.map((m) => [m.id, m]));
