@@ -1,4 +1,5 @@
-// Canais de TV do Brasil, lidos do site futebolnatv.com.br.
+// Canais de TV do Brasil, lidos do site futebolnatv.com.br e, para os jogos que ele não lista
+// (ex.: seleções pequenas, taças estrangeiras), do site futebolaovivobrasil.com.
 // O site não tem API, por isso lemos a página e procuramos, para cada jogo,
 // o bloco de texto que tem os dois times (ou um time + a mesma hora de Brasília)
 // e tiramos dali os nomes dos canais conhecidos.
@@ -9,6 +10,9 @@ export const PAGES = [
   'https://www.futebolnatv.com.br/jogos-hoje/',
   'https://www.futebolnatv.com.br/jogos-amanha/',
 ];
+
+// Segunda fonte: a página inicial traz os jogos de hoje e de amanhã numa tabela, com os canais em <li title="...">.
+export const PAGE2 = 'https://www.futebolaovivobrasil.com/';
 
 const BROWSER_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36',
@@ -156,18 +160,44 @@ export function extractBlocks(html) {
   return blocks;
 }
 
-/** Devolve { idDoJogo: ['Canal', ...] } para os jogos encontrados. */
-export async function fetchChannels(matches) {
-  const pages = await Promise.allSettled(PAGES.map((u) => getText(u, BROWSER_HEADERS)));
-  const blocks = pages.filter((p) => p.status === 'fulfilled').flatMap((p) => extractBlocks(p.value));
-  if (!blocks.length) throw new Error('Site de canais indisponível');
-  const map = {};
+const untag = (s) => String(s || '').replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&#8211;|&ndash;/g, '-').replace(/&[a-z#0-9]+;/gi, ' ').replace(/\s+/g, ' ').trim();
+
+/** Segunda fonte: uma linha da tabela (<tr>) por jogo → blocos no mesmo formato de extractBlocks (sem DOM). */
+export function extractBlocks2(html) {
+  const blocks = [];
+  for (const tr of String(html || '').split(/<tr[\s>]/i).slice(1)) {
+    if (!/class="canales"/.test(tr)) continue;
+    const hora = (tr.match(/class="hora[^"]*"[^>]*>\s*(\d{1,2}:\d{2})/) || [])[1];
+    const lado = (c) => { const m = tr.match(new RegExp(`class="${c}"[\\s\\S]*?<span[^>]*title="([^"]+)"`)); return m ? m[1] : ''; };
+    const nome = (tr.match(/itemprop="name" content="([^"]+)"/) || [])[1] || '';
+    const lista = (tr.split(/class="listaCanales"/)[1] || '').split(/<\/ul>/)[0];
+    const canais = [...lista.matchAll(/<li[^>]*title="([^"]+)"/g)].map((m) => m[1]);
+    if (!hora || !canais.length) continue;
+    const raw = untag(`${hora} ${lado('local')} ${lado('visitante')} ${nome.replace(' - ', ' ')} ${canais.join(' ')}`);
+    blocks.push({ raw, text: normalize(raw) });
+  }
+  return blocks;
+}
+
+function assign(matches, blocks, map) {
   for (const m of matches) {
+    if (map[m.id]) continue;
     const b = bestBlock(m, blocks);
     if (b) {
       const ch = findChannels(b.text);
       if (ch.length) map[m.id] = ch;
     }
   }
+}
+
+/** Devolve { idDoJogo: ['Canal', ...] } para os jogos encontrados. A segunda fonte só preenche os que a primeira não tem. */
+export async function fetchChannels(matches) {
+  const [p2, ...pages] = await Promise.allSettled([getText(PAGE2, BROWSER_HEADERS), ...PAGES.map((u) => getText(u, BROWSER_HEADERS))]);
+  const blocks = pages.filter((p) => p.status === 'fulfilled').flatMap((p) => extractBlocks(p.value));
+  const blocks2 = p2.status === 'fulfilled' ? extractBlocks2(p2.value) : [];
+  if (!blocks.length && !blocks2.length) throw new Error('Sites de canais indisponíveis');
+  const map = {};
+  assign(matches, blocks, map);
+  assign(matches, blocks2, map);
   return map;
 }

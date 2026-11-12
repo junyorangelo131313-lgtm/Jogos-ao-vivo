@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { dayKey, hhmm, addDays, todayTomorrow, TZ_BR } from '../www/js/time.js';
 import { parseEspn } from '../www/js/sources/espn.js';
 import { parseFootballData } from '../www/js/sources/footballdata.js';
-import { normalize, teamScore, findChannels, bestBlock } from '../www/js/channels.js';
+import { normalize, teamScore, findChannels, bestBlock, extractBlocks2 } from '../www/js/channels.js';
 import { isLiveish, isSantos, mergeLive, nextLiveDelay, leaguesByKickoff } from '../www/js/logic.js';
 import { LEAGUES } from '../www/js/leagues.js';
 
@@ -238,4 +238,23 @@ test('campeonatos do dia por ordem de horário do primeiro jogo', () => {
   ];
   // Taça da França (18:00) antes da Série B (22:00); empate às 22:00 mantém a ordem da lista; sem jogos fica de fora
   assert.deepEqual(leaguesByKickoff(jogos, ligas).map((l) => l.key), ['fra.cup', 'bra.2', 'eng.1']);
+});
+
+test('segunda fonte de canais: lê a tabela e encontra o jogo que a primeira não lista', () => {
+  const html = `<table><tr> <td class="hora "> 16:45 </td> <td class="detalles "><ul><li><span title=" Fase de grupos"> Fase de grupos</span></li></ul></td>
+    <td class="local"> <a class="internalLink" href="/equipe/luxemburgo"> <span title="Luxemburgo">Luxemburgo</span> </a> <img alt="Luxemburgo" title="Luxemburgo"/></td>
+    <td class="visitante"> <img alt="Estônia" title="Estônia"/> <a class="internalLink" href="/equipe/estonia"> <span title="Estônia">Estônia</span> </a></td>
+    <td class="canales"> <div itemscope=""><meta itemprop="name" content="Luxembourg - Estônia"/><meta itemprop="startDate" content="2026-11-13T15:45:00"/></div>
+    <ul class="listaCanales"> <li class="canal-sin-enlace " title="Disney+ Premium">Disney+ Premium</li> </ul> </td></tr>
+    <tr> <td class="hora "> 16:45 </td><td class="local"><span title="Andorra">Andorra</span></td><td class="visitante"><span title="Gibraltar">Gibraltar</span></td>
+    <td class="canales"><meta itemprop="name" content="Andorra - Gibraltar"/><ul class="listaCanales"><li title="ESPN 4">ESPN 4</li><li title="Disney+ Premium">Disney+</li></ul></td></tr>
+    <tr><td class="hora">18:00</td><td class="local"><span title="Sem Canal FC">Sem Canal FC</span></td><td class="canales"><ul class="listaCanales"></ul></td></tr></table>`;
+  const blocks = extractBlocks2(html);
+  assert.equal(blocks.length, 2); // a linha sem canais fica de fora
+  const jogo = { start: '2026-11-13T19:45:00Z', home: { name: 'Luxemburgo', alt: ['Luxembourg'] }, away: { name: 'Estonia', alt: [] } };
+  const b = bestBlock(jogo, blocks);
+  assert.ok(b);
+  assert.deepEqual(findChannels(b.text), ['Disney+']);
+  const outro = { start: '2026-11-13T19:45:00Z', home: { name: 'Andorra', alt: [] }, away: { name: 'Gibraltar', alt: [] } };
+  assert.deepEqual(findChannels(bestBlock(outro, blocks).text), ['ESPN 4', 'Disney+']);
 });
