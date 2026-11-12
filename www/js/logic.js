@@ -1,5 +1,5 @@
 // Regras do app que não dependem da tela (testadas em tests/).
-import { addDays } from './time.js';
+import { addDays, dayKey as dayKeyOf } from './time.js';
 const LIVE_WINDOW_MS = 150 * 60 * 1000; // um jogo dura ~2h com intervalo e acréscimos
 
 export const isSantos = (m) => [m.home.name, m.away.name].some((n) => /\bsantos\b/i.test(n) && !/laguna/i.test(n));
@@ -26,6 +26,22 @@ export function leaguesByKickoff(matches, leagues) {
     .map((l, i) => ({ l, i, t: first.get(l.key) }))
     .sort((a, b) => a.t - b.t || a.i - b.i)
     .map((x) => x.l);
+}
+
+/** Porque é que um jogo não tem canal: 'indisponivel' (nenhuma fonte respondeu), 'sem' (as duas responderam,
+ *  o jogo é hoje e nenhuma o lista) ou 'confirmar' (ainda pode aparecer: jogo de amanhã ou só uma fonte respondeu). */
+export function channelStatus(m, src, todayKey, key = (d) => dayKeyOf(d)) {
+  if (!src) return 'confirmar';
+  if (!src.ok1 && !src.ok2) return 'indisponivel';
+  if (src.ok1 && src.ok2 && key(new Date(m.start)) === todayKey) return 'sem';
+  return 'confirmar';
+}
+
+/** De quanto em quanto tempo voltar a procurar os canais em falta. */
+export function channelsMaxAge(missing, src, now = Date.now()) {
+  if (src && !src.ok1 && !src.ok2) return 10 * 60 * 1000;                                  // as fontes falharam: tenta cedo
+  const soon = missing.some((m) => { const t = Date.parse(m.start) - now; return t > 0 && t <= 60 * 60 * 1000; });
+  return soon ? 15 * 60 * 1000 : 2 * 60 * 60 * 1000;                                      // última hora antes do jogo: os sites completam a grade
 }
 
 /** Atualiza placar/minuto dos jogos antigos com os dados novos, sem perder os canais. */

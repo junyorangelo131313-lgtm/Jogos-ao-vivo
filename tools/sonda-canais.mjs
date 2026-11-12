@@ -4,7 +4,7 @@ import { DOMParser, NodeFilter } from 'linkedom';
 import { LEAGUES } from '../www/js/leagues.js';
 import { espnUrl, parseEspn } from '../www/js/sources/espn.js';
 import { todayTomorrow } from '../www/js/time.js';
-import { PAGES, PAGE2, extractBlocks, extractBlocks2, bestBlock, findChannels } from '../www/js/channels.js';
+import { PAGES, PAGE2, extractArticles, extractBlocks, extractBlocks2, bestBlock, findChannels } from '../www/js/channels.js';
 
 globalThis.DOMParser = DOMParser; globalThis.NodeFilter = NodeFilter;
 const UA = 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36';
@@ -14,7 +14,10 @@ const jogos = [];
 for (const l of LEAGUES) for (const d of [today, tomorrow]) {
   try { for (const m of parseEspn(JSON.parse(await get(espnUrl(l, d, d, true), 'application/json')), l)) if (!jogos.some((x) => x.id === m.id)) jogos.push({ ...m, liga: l.name }); } catch {}
 }
-const b1 = (await Promise.all(PAGES.map((u) => get(u).catch(() => '')))).flatMap((h) => extractBlocks(h));
+const h1 = await Promise.all(PAGES.map((u) => get(u).catch(() => '')));
+const arts = h1.flatMap((h) => extractArticles(h));
+const b1 = arts.length ? arts : h1.flatMap((h) => extractBlocks(h));
+console.log(`Fonte 1: leitura por ${arts.length ? 'estrutura' : 'texto'}`);
 const b2 = extractBlocks2(await get(PAGE2).catch(() => ''));
 console.log(`Jogos: ${jogos.length} | blocos fonte 1: ${b1.length} | blocos fonte 2: ${b2.length}`);
 let n1 = 0, n2 = 0;
