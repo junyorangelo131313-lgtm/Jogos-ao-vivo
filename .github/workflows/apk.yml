@@ -105,7 +105,10 @@ jobs:
           path: saida/*.apk
           retention-days: 90
 
+      # Só o ramo principal (ou uma compilação pedida à mão) publica a versão que o app instala.
+      # Os outros ramos compilam e correm os testes, e o APK fica só nos "Artifacts" desta compilação.
       - name: Copiar com nome fixo (para o link direto) e criar version.json
+        if: github.ref_name == github.event.repository.default_branch || github.event_name == 'workflow_dispatch'
         env:
           APP_VERSION: ${{ github.run_number }}
           COMMIT_MSG: ${{ github.event.head_commit.message }}
@@ -118,6 +121,7 @@ jobs:
       # Link fixo e público, que abre em qualquer navegador (também no celular, sem conta):
       # https://github.com/<dono>/<repo>/releases/latest/download/JogosAoVivo.apk
       - name: Publicar o APK em "Releases" (link direto)
+        if: github.ref_name == github.event.repository.default_branch || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk

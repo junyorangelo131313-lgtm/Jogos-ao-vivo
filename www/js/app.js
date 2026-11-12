@@ -2,8 +2,8 @@ import { LEAGUES, leagueByKey } from './leagues.js';
 import { addDays, dayKey, hhmm, shortDate, todayTomorrow, weekday } from './time.js';
 import { fetchEspn } from './sources/espn.js';
 import { fetchFootballData } from './sources/footballdata.js';
-import { fetchChannels } from './channels.js';
-import { calendarDays, goalLines, isLiveish, leaguesByKickoff, mergeLive, needsResult, nextLiveDelay, sortMatches } from './logic.js';
+import { fetchChannelsInfo } from './channels.js';
+import { calendarDays, channelsMaxAge, channelStatus, goalLines, isLiveish, leaguesByKickoff, mergeLive, needsResult, nextLiveDelay, sortMatches } from './logic.js';
 import * as favorites from './favorites.js';
 import * as notify from './notify.js';
 import * as detalhes from './detalhes.js';
@@ -19,7 +19,6 @@ const FAR_MAX_AGE = 24 * 60 * 60 * 1000;       // dias distantes do calendário:
 const AGENDA_MAX_AGE = 4 * 60 * 60 * 1000; // agenda: no máximo ~6 vezes por dia
 const LIVE_INTERVAL = 10 * 60 * 1000;      // ao vivo: de 10 em 10 minutos
 const MANUAL_MIN_GAP = 2 * 60 * 1000;      // botão "Atualizar": no máximo de 2 em 2 min
-const CHANNELS_MAX_AGE = 2 * 60 * 60 * 1000; // canais em falta: volta a procurar de 2 em 2 horas
 const BACK_TO_LIVE_AFTER = 20 * 60 * 1000;     // ao voltar ao app depois de 20 min: abre em "Ao vivo"
 const FD_KEY = (window.APP_CONFIG && window.APP_CONFIG.footballDataKey) || '';
 
@@ -95,16 +94,17 @@ async function refreshAgenda() {
   // Canais: o site só tem as páginas de hoje e de amanhã.
   const oldById = new Map(state.matches.map((m) => [m.id, m]));
   const near = matches.filter((m) => [today, tomorrow].includes(dayKey(new Date(m.start))));
-  let ch = {};
+  let ch = {}, chSrc = { ok1: false, ok2: false };
   try {
-    ch = await fetchChannels(near);
+    const r = await fetchChannelsInfo(near);
+    ch = r.map; chSrc = { ok1: r.ok1, ok2: r.ok2 };
   } catch (e) {
     console.warn('canais indisponíveis', e);
   }
   matches = matches.map((m) => ({ ...m, channels: ch[m.id] || oldById.get(m.id)?.channels || [] }));
 
   const missing = failed.filter((l) => !kept.some((m) => m.league === l.key)).map((l) => `${l.name} (${errors[l.key]})`);
-  state = { ...state, matches, today, missing, fetchedAt: Date.now(), liveFetchedAt: Date.now(), channelsAt: Date.now(),
+  state = { ...state, matches, today, missing, fetchedAt: Date.now(), liveFetchedAt: Date.now(), channelsAt: Date.now(), chSrc,
     farAt: farFresh ? state.farAt : Date.now() };
   store.save(state);
   favorites.learnIds(matches);
@@ -122,17 +122,22 @@ const missingChannels = (now = Date.now()) => {
 async function refreshChannels() {
   const todo = missingChannels();
   if (!todo.length) return;
-  const ch = await fetchChannels(todo);
+  let ch = {}, chSrc = { ok1: false, ok2: false };
+  try { const r = await fetchChannelsInfo(todo); ch = r.map; chSrc = { ok1: r.ok1, ok2: r.ok2 }; } catch (e) { console.warn('canais indisponíveis', e); }
   state = {
     ...state,
     matches: state.matches.map((m) => (ch[m.id] ? { ...m, channels: ch[m.id] } : m)),
-    channelsAt: Date.now(),
+    channelsAt: Date.now(), chSrc,
   };
   store.save(state);
   if (Object.keys(ch).length) syncNotifications();
 }
 
-const channelsAreOld = () => missingChannels().length && Date.now() - (state.channelsAt || state.fetchedAt || 0) > CHANNELS_MAX_AGE;
+// Canais em falta: de 2 em 2 horas; de 15 em 15 min na última hora antes de um jogo sem canal; de 10 em 10 min se as fontes falharam.
+const channelsAreOld = () => {
+  const miss = missingChannels();
+  return miss.length && Date.now() - (state.channelsAt || state.fetchedAt || 0) > channelsMaxAge(miss, state.chSrc);
+};
 
 let notifInfo = null; // resultado da última marcação de avisos
 async function syncNotifications() {
@@ -195,10 +200,14 @@ function stopLive() {
 function scheduleLive() {
   stopLive();
   if (document.hidden) return;
-  const delay = nextLiveDelay(state.matches, state.liveFetchedAt || 0, LIVE_INTERVAL);
-  if (delay == null) return;
+  const live = nextLiveDelay(state.matches, state.liveFetchedAt || 0, LIVE_INTERVAL);
+  // Com o app aberto, os canais em falta também são procurados de novo (antes só ao reabrir o app).
+  const miss = missingChannels();
+  const chan = miss.length ? Math.max(0, (state.channelsAt || state.fetchedAt || 0) + channelsMaxAge(miss, state.chSrc) - Date.now()) : null;
+  if (live == null && chan == null) return;
+  const delay = Math.min(live ?? Infinity, chan ?? Infinity);
   liveTimer = setTimeout(() => {
-    run(agendaIsOld() ? refreshAgenda : refreshLive);
+    run(agendaIsOld() ? refreshAgenda : channelsAreOld() ? refreshChannels : refreshLive);
   }, Math.min(delay, 2 ** 31 - 1));
 }
 
@@ -224,7 +233,10 @@ function channelText(m, showTbc = true) {
   if (m.channels?.length) return m.channels.join(' · ');
   if (!showTbc) return '';
   const usual = leagueByKey(m.league)?.usual;
-  return usual ? `${usual.join(' · ')} (provável)` : 'canal a confirmar';
+  if (usual) return `${usual.join(' · ')} (provável)`;
+  // Sem canal: diz porquê (as fontes falharam, o jogo é hoje e nenhuma o lista, ou ainda é cedo).
+  const st = channelStatus(m, state.chSrc, nearDays(Date.now())[0]);
+  return st === 'indisponivel' ? 'canais indisponíveis agora' : st === 'sem' ? 'sem transmissão anunciada no Brasil' : 'canal a confirmar';
 }
 
 function scoreOrX(m) {

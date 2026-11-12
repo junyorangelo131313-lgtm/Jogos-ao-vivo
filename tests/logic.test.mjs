@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { dayKey, hhmm, addDays, todayTomorrow, TZ_BR } from '../www/js/time.js';
 import { parseEspn } from '../www/js/sources/espn.js';
 import { parseFootballData } from '../www/js/sources/footballdata.js';
-import { normalize, teamScore, findChannels, bestBlock, extractBlocks2 } from '../www/js/channels.js';
-import { isLiveish, isSantos, mergeLive, nextLiveDelay, leaguesByKickoff } from '../www/js/logic.js';
+import { normalize, teamScore, findChannels, bestBlock, extractBlocks2, extractArticles } from '../www/js/channels.js';
+import { isLiveish, isSantos, mergeLive, nextLiveDelay, leaguesByKickoff, channelStatus, channelsMaxAge } from '../www/js/logic.js';
 import { LEAGUES } from '../www/js/leagues.js';
 
 test('horário de Portugal com horário de verão automático', () => {
@@ -257,4 +257,34 @@ test('segunda fonte de canais: lê a tabela e encontra o jogo que a primeira nã
   assert.deepEqual(findChannels(b.text), ['Disney+']);
   const outro = { start: '2026-11-13T19:45:00Z', home: { name: 'Andorra', alt: [] }, away: { name: 'Gibraltar', alt: [] } };
   assert.deepEqual(findChannels(bestBlock(outro, blocks).text), ['ESPN 4', 'Disney+']);
+});
+
+test('primeira fonte pela estrutura: article.match com data-ts, times e canais', () => {
+  const ts = Date.parse('2026-11-12T17:00:00Z') / 1000;
+  const html = `<article class="match" data-slot="j1" data-ts="${ts}" data-status="upcoming"><a href="/aovivo/armenia-x-chipre.html" class="m-link" aria-label="Armenia x Chipre"></a>
+    <div class="m-head"><p><b>UEFA Nations League</b> - League C - 5</p></div><div class="m-body"><div class="m-time"><strong>14:00</strong> </div><div class="m-teams">
+    <div class="m-team "><img alt="Armenia" class="m-crest"><span class="m-name">Armenia</span></div><div class="m-team "><img alt="Chipre"><span class="m-name">Chipre</span></div></div></div>
+    <div class="m-channels"><span><svg><use href="#i-tv"></use></svg><b>ESPN 3</b> </span><span><b>DISNEY+</b></span></div><button class="follow"></button></article>
+    <article class="match" data-ts="${ts + 86400}"><span class="m-name">Armenia</span><span class="m-name">Chipre</span><div class="m-channels"><b>SPORTV</b></div></article>
+    <article class="outro" data-ts="${ts}"><span class="m-name">A</span><span class="m-name">B</span></article>`;
+  const blocks = extractArticles(html);
+  assert.equal(blocks.length, 2);
+  const jogo = { start: '2026-11-12T17:00:00Z', home: { name: 'Armênia', alt: [] }, away: { name: 'Chipre', alt: [] } };
+  // o mesmo confronto no dia seguinte não serve: a hora exata tem de bater
+  assert.deepEqual(findChannels(bestBlock(jogo, blocks).text), ['ESPN 3', 'Disney+']);
+  assert.equal(bestBlock({ ...jogo, start: '2026-11-14T17:00:00Z' }, blocks), null);
+  assert.deepEqual(extractArticles('<div>site mudou</div>'), []);
+});
+
+test('sem canal: diz se as fontes falharam, se não há transmissão ou se ainda é cedo', () => {
+  const hoje = { start: '2026-11-12T19:45:00Z' }, amanha = { start: '2026-11-13T19:45:00Z' };
+  assert.equal(channelStatus(hoje, { ok1: false, ok2: false }, '2026-11-12'), 'indisponivel');
+  assert.equal(channelStatus(hoje, { ok1: true, ok2: true }, '2026-11-12'), 'sem');
+  assert.equal(channelStatus(amanha, { ok1: true, ok2: true }, '2026-11-12'), 'confirmar');
+  assert.equal(channelStatus(hoje, { ok1: true, ok2: false }, '2026-11-12'), 'confirmar');
+  assert.equal(channelStatus(hoje, undefined, '2026-11-12'), 'confirmar');
+  const agora = Date.parse('2026-11-12T19:00:00Z');
+  assert.equal(channelsMaxAge([hoje], { ok1: true, ok2: true }, agora), 15 * 60 * 1000);          // falta menos de 1 h
+  assert.equal(channelsMaxAge([amanha], { ok1: true, ok2: true }, agora), 2 * 60 * 60 * 1000);
+  assert.equal(channelsMaxAge([amanha], { ok1: false, ok2: false }, agora), 10 * 60 * 1000);
 });

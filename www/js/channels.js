@@ -125,6 +125,7 @@ export function bestBlock(match, blocks) {
   for (const b of blocks) {
     const hs = teamScore(match.home, b.text);
     const as = teamScore(match.away, b.text);
+    if (b.ts && Math.abs(b.ts - Date.parse(match.start)) > 20 * 60 * 1000) continue;   // fonte com hora exata: tem de ser o mesmo jogo
     const time = timeRe.test(b.raw);
     const ok = (hs >= 0.5 && as >= 0.5) || (Math.max(hs, as) === 1 && time);
     if (!ok) continue;
@@ -160,6 +161,25 @@ export function extractBlocks(html) {
   return blocks;
 }
 
+/** Primeira fonte, pela estrutura: um <article class="match" data-ts="..."> por jogo, times em .m-name e canais em .m-channels <b>.
+ *  Sem DOM (funciona igual no app e nos testes). Se o site mudar de formato devolve [], e usa-se a leitura por texto. */
+export function extractArticles(html) {
+  const blocks = [];
+  for (const art of String(html || '').split(/<article\b/i).slice(1)) {
+    const head = art.slice(0, art.indexOf('>') + 1);
+    if (!/class="[^"]*\bmatch\b/.test(head)) continue;
+    const body = art.split(/<\/article>/i)[0];
+    const ts = Number((head.match(/data-ts="(\d{9,11})"/) || [])[1]);
+    const nomes = [...body.matchAll(/class="m-name"[^>]*>([^<]+)</g)].map((m) => m[1]);
+    // todo o texto da zona dos canais (não só os <b>): alguns canais vêm em links ou noutras marcas
+    const canais = [untag('<' + (body.split(/class="m-channels"/)[1] || '').split(/<button\b/i)[0])];
+    if (!ts || nomes.length < 2) continue;
+    const raw = untag(`${hhmm(new Date(ts * 1000), TZ_BR)} ${nomes[0]} ${nomes[1]} ${canais.join(' ')}`);
+    blocks.push({ raw, text: normalize(raw), ts: ts * 1000 });
+  }
+  return blocks;
+}
+
 const untag = (s) => String(s || '').replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&#8211;|&ndash;/g, '-').replace(/&[a-z#0-9]+;/gi, ' ').replace(/\s+/g, ' ').trim();
 
 /** Segunda fonte: uma linha da tabela (<tr>) por jogo → blocos no mesmo formato de extractBlocks (sem DOM). */
@@ -190,14 +210,28 @@ function assign(matches, blocks, map) {
   }
 }
 
-/** Devolve { idDoJogo: ['Canal', ...] } para os jogos encontrados. A segunda fonte só preenche os que a primeira não tem. */
-export async function fetchChannels(matches) {
+/** Lê as duas fontes. Devolve { map: { idDoJogo: ['Canal', ...] }, ok1, ok2, n1, n2, modo1 }:
+ *  ok1/ok2 = a fonte respondeu e trouxe jogos; n1/n2 = jogos lidos; modo1 = 'estrutura' ou 'texto'.
+ *  A segunda fonte só preenche os jogos que a primeira não tem. */
+export async function fetchChannelsInfo(matches) {
   const [p2, ...pages] = await Promise.allSettled([getText(PAGE2, BROWSER_HEADERS), ...PAGES.map((u) => getText(u, BROWSER_HEADERS))]);
-  const blocks = pages.filter((p) => p.status === 'fulfilled').flatMap((p) => extractBlocks(p.value));
-  const blocks2 = p2.status === 'fulfilled' ? extractBlocks2(p2.value) : [];
-  if (!blocks.length && !blocks2.length) throw new Error('Sites de canais indisponíveis');
+  const htmls = pages.filter((p) => p.status === 'fulfilled').map((p) => p.value);
+  const arts = htmls.flatMap((h) => extractArticles(h));
+  // A leitura por texto precisa de DOM e é mais pesada: só quando a estrutura não deu nada (site mudou de formato).
+  let texto = [];
+  if (!arts.length) { try { texto = htmls.flatMap((h) => extractBlocks(h)); } catch (e) { texto = []; } }
+  let blocks2 = [];
+  if (p2.status === 'fulfilled') { try { blocks2 = extractBlocks2(p2.value); } catch (e) { blocks2 = []; } }
   const map = {};
-  assign(matches, blocks, map);
+  assign(matches, arts, map);
+  assign(matches, texto, map);
   assign(matches, blocks2, map);
-  return map;
+  return { map, ok1: arts.length + texto.length > 0, ok2: blocks2.length > 0, n1: arts.length || texto.length, n2: blocks2.length, modo1: arts.length ? 'estrutura' : 'texto' };
+}
+
+/** Devolve só { idDoJogo: ['Canal', ...] }; falha se nenhuma fonte respondeu. */
+export async function fetchChannels(matches) {
+  const r = await fetchChannelsInfo(matches);
+  if (!r.ok1 && !r.ok2) throw new Error('Sites de canais indisponíveis');
+  return r.map;
 }

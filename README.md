@@ -55,7 +55,10 @@ A lista fica em `www/js/leagues.js`. O app mostra:
 - **ajustes no fundo da tela**: 🔠 tamanho das letras (Normais, Grandes, Muito grandes) e 🌓 tema;
 - tema da tela **Automático** (segue o telemóvel), **Escuro** ou **Claro**; a escolha fica guardada;
 - ao voltar ao app depois de 20 minutos, abre sempre no separador **Ao vivo**;
-- canais em falta de hoje/amanhã: o app volta a procurá-los de 2 em 2 horas (o site publica-os ao longo do dia);
+- canais em falta de hoje/amanhã: o app volta a procurá-los de 2 em 2 horas, de 15 em 15 minutos na última hora antes
+  do jogo e de 10 em 10 minutos se os sites falharam. Sem canal, o app diz porquê: "canal a confirmar" (ainda pode aparecer),
+  "sem transmissão anunciada no Brasil" (jogo de hoje que nenhum dos dois sites lista) ou "canais indisponíveis agora";
+- só o ramo principal publica a versão que o app instala; os outros ramos compilam e testam, mas o APK fica só nos Artifacts;
 - **verificação diária no GitHub** (workflow "Verificação diária"): todos os dias testa a ESPN, os
   detalhes dos jogos e o site de canais. Se algo deixar de funcionar, abre um aviso em **Issues**
   no repositório e o GitHub manda-lhe um e-mail. Quando volta a funcionar, o aviso fecha sozinho.
