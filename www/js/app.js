@@ -255,32 +255,65 @@ function goalsHtml(m) {
   return `<div class="goals"><div class="gh">${col('home')}</div><div class="ga">${col('away')}</div></div>`;
 }
 
-function liveCard(m) {
+/** Sigla do time: a da ESPN, ou as 3 primeiras letras do nome. */
+function abbrOf(t) {
+  if (t?.abbr) return t.abbr;
+  const n = String(t?.name || '?').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 ]/g, '');
+  return n.replace(/\s+/g, '').slice(0, 3).toUpperCase() || '?';
+}
+
+/** Escudo do time (ou um círculo com a sigla, se não houver imagem). */
+function crest(t) {
+  const ab = esc(abbrOf(t));
+  return t?.logo
+    ? `<span class="crest"><img src="${esc(t.logo)}" alt="" loading="lazy" decoding="async" data-abbr="${ab}"></span>`
+    : `<span class="crest none">${ab}</span>`;
+}
+
+/** Cartão de um jogo (como na referência): escudo + sigla, placar, estado ao centro, estádio por baixo. */
+function matchCard(m, now, { showTbc = true, showLeague = false, showDay = false, live = false } = {}) {
+  const isLive = live || isLiveish(m, now);
+  const d = dayKey(new Date(m.start));
+  const mid = isLive ? (m.minute || 'AO VIVO')
+    : m.state === 'done' ? 'Fim'
+      : m.state === 'off' ? 'Adiado'
+        : hhmm(new Date(m.start));
+  const day = showDay && !isLive && m.state === 'pre' ? `<small>${esc(dayLabel(d, now))}</small>` : '';
+  const sc = (side) => (m.score ? `<span class="mscore">${m.score[side]}</span>` : '<span class="mscore"></span>');
+  const ch = channelText(m, showTbc);
+  const top = `${showLeague || live ? leagueTag(m.league) : ''}<span class="mnames">${fav(m) ? '<span class="star">★</span>' : ''}${esc(m.home.name)} x ${esc(m.away.name)}</span>`;
+  const bottom = [m.venue, ch].filter(Boolean).map(esc).join(' · ');
   return `
-    <div class="live-card${fav(m) ? ' santos' : ''}" data-mid="${esc(m.id)}" role="button" tabindex="0" style="--c:${leagueByKey(m.league)?.color || 'var(--accent)'}">
-      <div class="live-top">${leagueTag(m.league)}<span class="minute"><span class="dot"></span>${esc(m.minute || 'A começar')}</span></div>
-      <div class="teams big">${teams(m)}</div>
+    <div class="mcard row${fav(m) ? ' santos' : ''}${m.state === 'done' ? ' done' : ''}${isLive ? ' live' : ''}" data-mid="${esc(m.id)}" role="button" tabindex="0" style="--c:${leagueByKey(m.league)?.color || 'var(--accent)'}">
+      <div class="mtop">${top}</div>
+      <div class="mline">
+        <div class="mteam">${crest(m.home)}<b>${esc(abbrOf(m.home))}</b></div>
+        ${sc('home')}
+        <div class="mmid${isLive ? ' is-live' : ''}">${day}${isLive ? '<span class="dot"></span>' : ''}<span>${esc(mid)}</span></div>
+        ${sc('away')}
+        <div class="mteam">${crest(m.away)}<b>${esc(abbrOf(m.away))}</b></div>
+      </div>
       ${goalsHtml(m)}
-      <div class="channel">${esc(channelText(m))}</div>
+      ${bottom ? `<div class="mbottom${m.channels?.length ? '' : ' tbc'}">${bottom}</div>` : ''}
     </div>`;
 }
 
-function row(m, now, { showTbc = true, showLeague = false, showDay = false } = {}) {
-  const live = isLiveish(m, now);
-  const time = m.state === 'done' ? 'Fim' : live ? 'AO VIVO' : hhmm(new Date(m.start));
-  const ch = channelText(m, showTbc);
-  const d = dayKey(new Date(m.start));
-  return `
-    <div class="row${fav(m) ? ' santos' : ''}${m.state === 'done' ? ' done' : ''}${live ? ' live' : ''}" data-mid="${esc(m.id)}" role="button" tabindex="0">
-      <div class="time${live ? ' is-live' : ''}">${showDay && !live && m.state !== 'done' ? `<small>${esc(dayLabel(d, now))}</small>` : ''}${esc(time)}</div>
-      <div class="info">
-        <div class="teams">${teams(m)}</div>
-        ${goalsHtml(m)}
-        ${showLeague || ch ? `<div class="channel${m.channels?.length ? '' : ' tbc'}">${showLeague ? leagueTag(m.league) : ''}${esc(ch)}</div>` : ''}
-      </div>
-      <span class="go" aria-hidden="true">›</span>
-    </div>`;
+function liveCard(m) {
+  return matchCard(m, Date.now(), { live: true });
 }
+
+function row(m, now, opts = {}) {
+  return matchCard(m, now, opts);
+}
+
+// Se o escudo não carregar (sem internet, link partido), mostra a sigla no lugar.
+document.addEventListener('error', (e) => {
+  const img = e.target;
+  if (img?.tagName === 'IMG' && img.parentElement?.classList.contains('crest')) {
+    img.parentElement.classList.add('none');
+    img.parentElement.textContent = img.dataset.abbr || '?';
+  }
+}, true);
 
 function leaguesOfDay(key, now, opts = {}) {
   const ofDay = state.matches.filter((m) => dayKey(new Date(m.start)) === key && (!opts.only || opts.only(m)));
@@ -290,7 +323,7 @@ function leaguesOfDay(key, now, opts = {}) {
   for (const l of leaguesByKickoff(ofDay, LEAGUES)) {
     const list = sortMatches(ofDay.filter((m) => m.league === l.key));
     if (!list.length) continue;
-    const rows = `<div class="card">${list.map((m) => row(m, now, opts)).join('')}</div>`;
+    const rows = `<div class="mlist">${list.map((m) => row(m, now, opts)).join('')}</div>`;
     if (opts.collapse) {
       // Competições com muitos jogos (ex.: taças com divisões baixas) ficam fechadas;
       // abrem sempre se houver jogo ao vivo ou de um time favorito.
@@ -452,7 +485,7 @@ function renderCampeonatos(now) {
     for (const d of days) {
       const ofDay = list.filter((m) => dayKey(new Date(m.start)) === d);
       html += `<h3 class="day-sub">${esc(dayLabel(d, now))} <small>${shortDate(d)}</small></h3>
-        <div class="card">${ofDay.map((m) => row(m, now, { showTbc: near.includes(d) })).join('')}</div>`;
+        <div class="mlist">${ofDay.map((m) => row(m, now, { showTbc: near.includes(d) })).join('')}</div>`;
     }
     return html;
   }

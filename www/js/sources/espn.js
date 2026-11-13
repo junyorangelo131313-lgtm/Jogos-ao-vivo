@@ -29,6 +29,8 @@ function team(c) {
     id: t.id ? String(t.id) : null,
     name: t.displayName || t.shortDisplayName || t.name || '?',
     alt: [t.shortDisplayName, t.name, t.location, t.abbreviation].filter(Boolean),
+    abbr: t.abbreviation || '',
+    logo: t.logo || t.logos?.[0]?.href || '',
   };
 }
 
@@ -81,6 +83,7 @@ export function parseEspn(data, league) {
       score: hasScore ? { home: Number(home.score ?? 0), away: Number(away.score ?? 0) } : null,
       minute: state === 'live' ? (status.type?.shortDetail || status.displayClock || '') : '',
       goals: hasScore ? parseGoals(comp.details, home.team?.id, away.team?.id) : [],
+      venue: comp.venue?.fullName || '',
       channels: [],
     });
   }

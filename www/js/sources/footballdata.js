@@ -24,7 +24,7 @@ export function parseFootballData(data) {
     if (state === 'live') {
       minute = m.status === 'PAUSED' ? 'Intervalo' : (m.minute ? `${m.minute}'` : 'Ao vivo');
     }
-    const t = (x) => ({ name: x?.shortName || x?.name || '?', alt: [x?.name, x?.tla].filter(Boolean) });
+    const t = (x) => ({ name: x?.shortName || x?.name || '?', alt: [x?.name, x?.tla].filter(Boolean), abbr: x?.tla || '', logo: x?.crest || '' });
     out.push({
       id: `fd:${m.id}`,
       league: league.key,

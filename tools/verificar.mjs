@@ -40,6 +40,11 @@ if (failed.length > LEAGUES.length / 2) {
   problems.push(`A ESPN falhou em ${failed.length} de ${LEAGUES.length} competições.`);
 }
 
+// 1a) Escudos e siglas (vêm na mesma lista da ESPN)
+const withLogo = matches.filter((m) => m.home.logo && m.away.logo).length;
+log(`- Jogos com escudo dos dois times: ${withLogo} de ${matches.length}${matches[0] ? ` (ex.: ${matches[0].home.abbr || '?'} ${matches[0].home.logo || 'sem escudo'})` : ''}`);
+if (matches.length >= 10 && withLogo === 0) problems.push('A ESPN deixou de mandar os escudos dos times.');
+
 // 1b) Quem marcou (vem na mesma lista da ESPN)
 const withGoals = matches.filter((m) => m.score && m.score.home + m.score.away > 0);
 const ok = withGoals.filter((m) => (m.goals || []).length);

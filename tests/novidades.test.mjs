@@ -199,3 +199,15 @@ test('épocas: lê o calendário da ESPN e evita pedidos fora de época', () => 
   assert.equal(espnhost.seasonPlan('bra', '2026-11-08', '2026-11-24', now), 'full');
   espnhost._setSeasons({});
 });
+
+test('escudo, sigla e estádio vêm da lista da ESPN', async () => {
+  const { parseEspn } = await import('../www/js/sources/espn.js');
+  const [m] = parseEspn({ events: [{ id: '9', date: '2026-11-13T20:00Z', status: { type: { state: 'pre' } },
+    competitions: [{ venue: { fullName: 'Vila Belmiro' }, competitors: [
+      { homeAway: 'home', team: { id: '1', displayName: 'Santos', abbreviation: 'SAN', logo: 'https://a.espncdn.com/i/teamlogos/soccer/500/2674.png' } },
+      { homeAway: 'away', team: { id: '2', displayName: 'Palmeiras', abbreviation: 'PAL', logos: [{ href: 'https://x/pal.png' }] } }] }] }] }, { key: 'bra' });
+  assert.equal(m.home.abbr, 'SAN');
+  assert.equal(m.home.logo, 'https://a.espncdn.com/i/teamlogos/soccer/500/2674.png');
+  assert.equal(m.away.logo, 'https://x/pal.png');
+  assert.equal(m.venue, 'Vila Belmiro');
+});

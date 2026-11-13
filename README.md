@@ -231,3 +231,9 @@ Comandos: `npm ci`, `npm test`, `npx cap sync android`.
 - Os dias distantes do calendário (de daqui a 3 dias em diante) são pedidos uma vez por dia; as atualizações das 4 em 4 horas
   pedem só ontem, hoje, amanhã e depois.
 - Se o servidor principal da ESPN bloquear ("Access Denied"), o app passa sozinho para o servidor alternativo.
+
+### Visual
+
+- Fundo **vermelho-vinho escuro** (modo escuro) e cartões por jogo: **escudo e sigla** de cada time, placar ao centro,
+  estado (hora, minuto ao vivo ou "Fim"), nome completo dos times por cima e estádio + canal por baixo.
+- Os escudos vêm da ESPN; se algum não carregar, aparece a sigla num círculo.

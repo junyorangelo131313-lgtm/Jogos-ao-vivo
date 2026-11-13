@@ -1,28 +1,29 @@
 /* Cores. Escuro por defeito (azul-noite com roxo); claro quando o telemóvel está em modo claro
    (opção "Automático") ou quando se escolhe "Claro". */
 :root {
-  --bg1: #0f1638;
-  --bg2: #241048;
-  --card: rgba(255, 255, 255, .06);
-  --card-solid: #1a2150;
-  --line: rgba(255, 255, 255, .10);
-  --text: #eef1ff;
-  --muted: #a9b0d6;
-  --live: #ff4d6d;
+  /* Escuro: vermelho-vinho no topo a passar para quase preto (como na imagem de referência). */
+  --bg1: #5c0f1c;
+  --bg2: #0d0809;
+  --card: rgba(255, 255, 255, .07);
+  --card-solid: #2a1619;
+  --line: rgba(255, 255, 255, .09);
+  --text: #f6eff0;
+  --muted: #b9a7aa;
+  --live: #ff4d5e;
   --santos: #f5c518;
   --santos-bg: rgba(245, 197, 24, .13);
   --santos-text: #ffffff;
-  --accent: #a78bfa;
-  --accent2: #60a5fa;
+  --accent: #f43f5e;
+  --accent2: #9f1239;
   --on-accent: #ffffff;
-  --shadow: 0 6px 20px rgba(0, 0, 0, .25);
+  --shadow: 0 6px 20px rgba(0, 0, 0, .35);
   color-scheme: dark;
   font-size: 15px;
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
-    --bg1: #e0ecff;
-    --bg2: #efe4ff;
+    --bg1: #fde8ea;
+    --bg2: #f7f3f3;
     --card: rgba(255, 255, 255, .85);
     --card-solid: #ffffff;
     --line: rgba(60, 50, 140, .12);
@@ -32,15 +33,15 @@
     --santos: #b88700;
     --santos-bg: rgba(234, 179, 8, .16);
     --santos-text: #1d1b3a;
-    --accent: #7c3aed;
-    --accent2: #2563eb;
+    --accent: #be123c;
+    --accent2: #881337;
     --shadow: 0 4px 14px rgba(60, 50, 140, .12);
     color-scheme: light;
   }
 }
 :root[data-theme="light"] {
-  --bg1: #e0ecff;
-  --bg2: #efe4ff;
+  --bg1: #fde8ea;
+  --bg2: #f7f3f3;
   --card: rgba(255, 255, 255, .85);
   --card-solid: #ffffff;
   --line: rgba(60, 50, 140, .12);
@@ -50,8 +51,8 @@
   --santos: #b88700;
   --santos-bg: rgba(234, 179, 8, .16);
   --santos-text: #1d1b3a;
-  --accent: #7c3aed;
-  --accent2: #2563eb;
+  --accent: #be123c;
+  --accent2: #881337;
   --shadow: 0 4px 14px rgba(60, 50, 140, .12);
   color-scheme: light;
 }
@@ -60,7 +61,7 @@
 html { background: var(--bg1); }
 body {
   margin: 0; min-height: 100vh; color: var(--text);
-  background: linear-gradient(165deg, var(--bg1) 0%, var(--bg2) 100%) fixed;
+  background: linear-gradient(180deg, var(--bg1) 0%, var(--bg2) 55%) fixed;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   line-height: 1.35;
   padding: env(safe-area-inset-top) 14px calc(14px + env(safe-area-inset-bottom));
@@ -350,3 +351,35 @@ details.league > summary small { color: var(--muted); font-weight: 400; font-siz
 details.league > summary::after { content: "▾"; margin-left: auto; color: var(--muted); transition: transform .15s; }
 details.league:not([open]) > summary::after { transform: rotate(-90deg); }
 details.league:not([open]) > summary { opacity: .85; }
+
+/* ---------- Cartões de jogo (escudo + sigla, placar ao centro) ---------- */
+.mlist { display: flex; flex-direction: column; gap: 8px; }
+.live-list { display: flex; flex-direction: column; gap: 10px; }
+.mcard { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+  padding: 8px 12px 9px; box-shadow: var(--shadow); position: relative; overflow: hidden; }
+.mcard.row { border-bottom: 1px solid var(--line); }
+.mcard.live { border-color: color-mix(in srgb, var(--live) 70%, transparent); }
+.mcard.santos { border: 1px solid var(--santos); background: var(--santos-bg); margin: 0; }
+.mtop { display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap;
+  font-size: .7rem; color: var(--muted); text-align: center; }
+.mnames { overflow-wrap: anywhere; }
+.mline { display: grid; grid-template-columns: 1fr auto minmax(4.2em, auto) auto 1fr; align-items: center; gap: 6px; margin: 6px 0 2px; }
+.mteam { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+.mteam b { font-size: .78rem; letter-spacing: .03em; }
+.crest { width: 34px; height: 34px; display: grid; place-items: center; }
+.crest img { width: 34px; height: 34px; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); }
+.crest.none { border-radius: 50%; background: color-mix(in srgb, var(--c) 35%, var(--card-solid)); font-size: .62rem; font-weight: 800; color: var(--text); }
+.mscore { font-size: 1.45rem; font-weight: 800; min-width: 1.2em; text-align: center; font-variant-numeric: tabular-nums; }
+.mcard.live .mscore { color: var(--live); }
+.mmid { display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: .78rem; font-weight: 700; color: var(--text); }
+.mmid small { font-size: .62rem; color: var(--muted); font-weight: 600; }
+.mmid.is-live { color: var(--live); flex-direction: row; gap: 5px; }
+.mcard.done .mmid { color: var(--muted); }
+.mbottom { text-align: center; font-size: .68rem; color: var(--muted); margin-top: 3px; }
+.mbottom.tbc { font-style: italic; }
+.mcard .goals { margin: 4px 0 0; font-size: .7rem; }
+.mcard .tag { font-size: .62rem; }
+
+/* Título legível sobre o fundo vermelho (no claro mantém o degradê). */
+:root:not([data-theme="light"]) h1 { background: none; color: var(--text); }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) h1 { background: linear-gradient(90deg, var(--accent2), var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent; } }
