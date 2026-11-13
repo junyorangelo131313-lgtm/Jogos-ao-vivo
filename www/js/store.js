@@ -1,5 +1,6 @@
 // Guarda a agenda no próprio telemóvel, para abrir na hora e gastar poucos pedidos.
-const KEY = 'jogos-ao-vivo:v2';
+// v3: obriga a buscar tudo de novo depois da atualização que trouxe os escudos.
+const KEY = 'jogos-ao-vivo:v3';
 
 export function load() {
   try {

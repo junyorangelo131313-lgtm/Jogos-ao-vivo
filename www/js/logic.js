@@ -28,12 +28,30 @@ export function leaguesByKickoff(matches, leagues) {
     .map((x) => x.l);
 }
 
+/**
+ * Endereços possíveis do escudo, por ordem: o que a ESPN mandou, o endereço padrão da ESPN pelo código
+ * do time e, nas seleções, a bandeira do país pela sigla. O app tenta um de cada vez.
+ */
+export function crestUrls(t, national = false) {
+  const out = [];
+  if (t?.logo) out.push(t.logo);
+  const ab = String(t?.abbr || '').toLowerCase();
+  if (national && /^[a-z]{2,4}$/.test(ab)) out.push(`https://a.espncdn.com/i/teamlogos/countries/500/${ab}.png`);
+  if (t?.id && /^\d+$/.test(String(t.id))) out.push(`https://a.espncdn.com/i/teamlogos/soccer/500/${t.id}.png`);
+  return [...new Set(out)];
+}
+
 /** Atualiza placar/minuto dos jogos antigos com os dados novos, sem perder os canais. */
 export function mergeLive(oldList, fresh) {
   const byId = new Map(fresh.map((m) => [m.id, m]));
   return oldList.map((m) => {
     const n = byId.get(m.id);
-    return n ? { ...m, state: n.state, score: n.score, minute: n.minute, goals: n.goals || m.goals || [] } : m;
+    if (!n) return m;
+    const out = { ...m, state: n.state, score: n.score, minute: n.minute, goals: n.goals || m.goals || [] };
+    // Traz também os escudos novos (jogos guardados antes de haver escudos).
+    if (n.home) out.home = { ...m.home, ...n.home };
+    if (n.away) out.away = { ...m.away, ...n.away };
+    return out;
   });
 }
 

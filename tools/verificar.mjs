@@ -10,6 +10,7 @@ import { fetchChannels, extractBlocks, PAGES } from '../www/js/channels.js';
 import { getText } from '../www/js/http.js';
 import { fetchDetails } from '../www/js/detalhes.js';
 import { addDays, dayKey, todayTomorrow } from '../www/js/time.js';
+import { crestUrls } from '../www/js/logic.js';
 
 // O app corre num navegador; aqui simulamos o necessário para ler o HTML do site de canais.
 globalThis.DOMParser = DOMParser;
@@ -44,6 +45,24 @@ if (failed.length > LEAGUES.length / 2) {
 const withLogo = matches.filter((m) => m.home.logo && m.away.logo).length;
 log(`- Jogos com escudo dos dois times: ${withLogo} de ${matches.length}${matches[0] ? ` (ex.: ${matches[0].home.abbr || '?'} ${matches[0].home.logo || 'sem escudo'})` : ''}`);
 if (matches.length >= 10 && withLogo === 0) problems.push('A ESPN deixou de mandar os escudos dos times.');
+// Times sem escudo na lista: os endereços alternativos (padrão da ESPN / bandeira) existem?
+{
+  const teams = new Map();
+  for (const m of matches) for (const t of [m.home, m.away]) {
+    if (!t.logo && !teams.has(t.name)) teams.set(t.name, { t, national: LEAGUES.find((l) => l.key === m.league)?.national });
+  }
+  const sample = [...teams.values()].slice(0, 12);
+  let ok = 0;
+  for (const { t, national } of sample) {
+    let found = '';
+    for (const u of crestUrls(t, national)) {
+      try { const r = await fetch(u, { method: 'HEAD' }); if (r.ok) { found = u; break; } } catch { /* tenta o seguinte */ }
+    }
+    if (found) ok += 1;
+    log(`  - sem escudo na lista: ${t.name} (${t.abbr || '?'}, código ${t.id || '?'})${national ? ' [seleção]' : ''} → ${found || 'nenhum endereço funciona'}`);
+  }
+  log(`- Times sem escudo na lista: ${teams.size}; dos ${sample.length} testados, ${ok} têm escudo pelo endereço alternativo`);
+}
 
 // 1b) Quem marcou (vem na mesma lista da ESPN)
 const withGoals = matches.filter((m) => m.score && m.score.home + m.score.away > 0);

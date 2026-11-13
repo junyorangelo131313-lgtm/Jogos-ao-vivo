@@ -3,7 +3,7 @@ import { addDays, dayKey, hhmm, shortDate, todayTomorrow, weekday } from './time
 import { fetchEspn } from './sources/espn.js';
 import { fetchFootballData } from './sources/footballdata.js';
 import { fetchChannels } from './channels.js';
-import { calendarDays, goalLines, isLiveish, leaguesByKickoff, mergeLive, needsResult, nextLiveDelay, sortMatches } from './logic.js';
+import { calendarDays, crestUrls, goalLines, isLiveish, leaguesByKickoff, mergeLive, needsResult, nextLiveDelay, sortMatches } from './logic.js';
 import * as favorites from './favorites.js';
 import * as notify from './notify.js';
 import * as detalhes from './detalhes.js';
@@ -263,10 +263,11 @@ function abbrOf(t) {
 }
 
 /** Escudo do time (ou um círculo com a sigla, se não houver imagem). */
-function crest(t) {
+function crest(t, national = false) {
   const ab = esc(abbrOf(t));
-  return t?.logo
-    ? `<span class="crest"><img src="${esc(t.logo)}" alt="" loading="lazy" decoding="async" data-abbr="${ab}"></span>`
+  const [first, ...rest] = crestUrls(t, national);
+  return first
+    ? `<span class="crest"><img src="${esc(first)}" alt="" loading="lazy" decoding="async" data-abbr="${ab}" data-next="${esc(rest.join('|'))}"></span>`
     : `<span class="crest none">${ab}</span>`;
 }
 
@@ -288,11 +289,11 @@ function matchCard(m, now, { showTbc = true, showLeague = false, showDay = false
     <div class="mcard row${fav(m) ? ' santos' : ''}${m.state === 'done' ? ' done' : ''}${isLive ? ' live' : ''}" data-mid="${esc(m.id)}" role="button" tabindex="0" style="--c:${leagueByKey(m.league)?.color || 'var(--accent)'}">
       ${top ? `<div class="mtop">${top}</div>` : ''}
       <div class="mline">
-        <div class="mteam">${crest(m.home)}<b>${esc(m.home.name)}</b></div>
+        <div class="mteam">${crest(m.home, leagueByKey(m.league)?.national)}<b>${esc(m.home.name)}</b></div>
         ${sc('home')}
         <div class="mmid${isLive ? ' is-live' : ''}">${day}${isLive ? '<span class="dot"></span>' : ''}<span>${esc(mid)}</span></div>
         ${sc('away')}
-        <div class="mteam">${crest(m.away)}<b>${esc(m.away.name)}</b></div>
+        <div class="mteam">${crest(m.away, leagueByKey(m.league)?.national)}<b>${esc(m.away.name)}</b></div>
       </div>
       ${goalsHtml(m)}
       ${bottom ? `<div class="mbottom${m.channels?.length ? '' : ' tbc'}">${bottom}</div>` : ''}
@@ -311,6 +312,9 @@ function row(m, now, opts = {}) {
 document.addEventListener('error', (e) => {
   const img = e.target;
   if (img?.tagName === 'IMG' && img.parentElement?.classList.contains('crest')) {
+    // Tenta o endereço seguinte; se não houver mais, mostra as letras.
+    const [next, ...rest] = (img.dataset.next || '').split('|').filter(Boolean);
+    if (next) { img.dataset.next = rest.join('|'); img.src = next; return; }
     img.parentElement.classList.add('none');
     img.parentElement.textContent = img.dataset.abbr || '?';
   }

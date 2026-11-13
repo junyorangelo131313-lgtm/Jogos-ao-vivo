@@ -211,3 +211,12 @@ test('escudo, sigla e estádio vêm da lista da ESPN', async () => {
   assert.equal(m.away.logo, 'https://x/pal.png');
   assert.equal(m.venue, 'Vila Belmiro');
 });
+
+test('escudo: endereços alternativos (padrão da ESPN e bandeira das seleções)', async () => {
+  const { crestUrls } = await import('../www/js/logic.js');
+  assert.deepEqual(crestUrls({ id: '2674', logo: '' }), ['https://a.espncdn.com/i/teamlogos/soccer/500/2674.png']);
+  assert.deepEqual(crestUrls({ id: '205', abbr: 'BRA' }, true), [
+    'https://a.espncdn.com/i/teamlogos/countries/500/bra.png', 'https://a.espncdn.com/i/teamlogos/soccer/500/205.png']);
+  assert.deepEqual(crestUrls({ id: '1', logo: 'https://x/a.png' }), ['https://x/a.png', 'https://a.espncdn.com/i/teamlogos/soccer/500/1.png']);
+  assert.deepEqual(crestUrls({ name: 'Sem dados' }), []);
+});
