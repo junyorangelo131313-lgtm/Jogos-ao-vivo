@@ -281,17 +281,18 @@ function matchCard(m, now, { showTbc = true, showLeague = false, showDay = false
   const day = showDay && !isLive && m.state === 'pre' ? `<small>${esc(dayLabel(d, now))}</small>` : '';
   const sc = (side) => (m.score ? `<span class="mscore">${m.score[side]}</span>` : '<span class="mscore"></span>');
   const ch = channelText(m, showTbc);
-  const top = `${showLeague || live ? leagueTag(m.league) : ''}<span class="mnames">${fav(m) ? '<span class="star">★</span>' : ''}${esc(m.home.name)} x ${esc(m.away.name)}</span>`;
+  // Por cima: o campeonato (quando a lista mistura campeonatos) e a ★ dos times favoritos.
+  const top = [showLeague || live ? leagueTag(m.league) : '', fav(m) ? '<span class="star">★ Meu time</span>' : ''].filter(Boolean).join('');
   const bottom = [m.venue, ch].filter(Boolean).map(esc).join(' · ');
   return `
     <div class="mcard row${fav(m) ? ' santos' : ''}${m.state === 'done' ? ' done' : ''}${isLive ? ' live' : ''}" data-mid="${esc(m.id)}" role="button" tabindex="0" style="--c:${leagueByKey(m.league)?.color || 'var(--accent)'}">
-      <div class="mtop">${top}</div>
+      ${top ? `<div class="mtop">${top}</div>` : ''}
       <div class="mline">
-        <div class="mteam">${crest(m.home)}<b>${esc(abbrOf(m.home))}</b></div>
+        <div class="mteam">${crest(m.home)}<b>${esc(m.home.name)}</b></div>
         ${sc('home')}
         <div class="mmid${isLive ? ' is-live' : ''}">${day}${isLive ? '<span class="dot"></span>' : ''}<span>${esc(mid)}</span></div>
         ${sc('away')}
-        <div class="mteam">${crest(m.away)}<b>${esc(abbrOf(m.away))}</b></div>
+        <div class="mteam">${crest(m.away)}<b>${esc(m.away.name)}</b></div>
       </div>
       ${goalsHtml(m)}
       ${bottom ? `<div class="mbottom${m.channels?.length ? '' : ' tbc'}">${bottom}</div>` : ''}

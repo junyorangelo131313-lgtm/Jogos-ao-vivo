@@ -234,6 +234,6 @@ Comandos: `npm ci`, `npm test`, `npx cap sync android`.
 
 ### Visual
 
-- Fundo **vermelho-vinho escuro** (modo escuro) e cartões por jogo: **escudo e sigla** de cada time, placar ao centro,
-  estado (hora, minuto ao vivo ou "Fim"), nome completo dos times por cima e estádio + canal por baixo.
+- Fundo **vermelho-vinho escuro** (modo escuro) e cartões por jogo: **escudo e nome** de cada time, placar ao centro,
+  estado (hora, minuto ao vivo ou "Fim"), nome completo de cada time por baixo do escudo, e estádio + canal em baixo.
 - Os escudos vêm da ESPN; se algum não carregar, aparece a sigla num círculo.
