@@ -390,7 +390,13 @@ function renderAoVivo(now) {
     ${leaguesOfDay(tomorrow, now, { emptyText: 'Sem jogos amanhã.' })}
     <h2 class="section-title day-head">Ontem <small>${shortDate(yesterday)} · resultados</small>${allToggle(yesterday)}</h2>
     ${leaguesOfDay(yesterday, now, { showTbc: false, emptyText: 'Sem jogos ontem.' })}
-    <p class="note">Toque no − para fechar uma competição e no + para abrir. A escolha fica guardada.</p>`;
+    <h2 class="section-title">📅 Próximos dias</h2>
+    <div class="chips next-days">${calendarDays(addDays(today, 2), CAL_DAYS - 2).map((d) => {
+      const n = state.matches.filter((m) => dayKey(new Date(m.start)) === d).length;
+      return `<button type="button" class="chip" data-goday="${d}"><span class="chip-wd">${esc(dayLabel(d, now))}</span>
+        <span class="chip-date">${shortDate(d)}</span><span class="chip-n">${n ? `${n} jogo${n > 1 ? 's' : ''}` : '—'}</span></button>`;
+    }).join('')}</div>
+    <p class="note">Toque num dia para ver os jogos. Toque no − para fechar uma competição e no + para abrir.</p>`;
   return html;
 }
 
@@ -813,6 +819,8 @@ $('#content').addEventListener('click', (e) => {
     render();
     return;
   }
+  const go = e.target.closest('[data-goday]');
+  if (go) { selectedDay = go.dataset.goday; view = 'calendario'; render(); window.scrollTo(0, 0); return; }
   if (e.target.closest('[data-close]')) { closeDetail(); return; }
   if (e.target.closest('[data-reload-detail]')) {
     const m = state.matches.find((x) => x.id === openMatch);
