@@ -388,3 +388,17 @@ details.league:not([open]) > summary { opacity: .85; }
 .mteam b { font-size: .8rem; letter-spacing: 0; text-align: center; line-height: 1.15; overflow-wrap: anywhere; }
 .mline { grid-template-columns: minmax(0, 1fr) auto minmax(3.8em, auto) auto minmax(0, 1fr); margin-top: 4px; }
 .mtop .star { color: var(--santos); font-weight: 700; }
+
+/* ---------- Botão − / + de cada competição e "Fechar/Abrir todos" ---------- */
+details.league > summary::after { content: none; }
+details.league > summary .lsum { flex: 1; min-width: 0; }
+details.league > summary .pm { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--card); border: 1px solid var(--line); color: var(--text); font-size: 1.15rem; font-weight: 700; line-height: 1; }
+details.league[open] > summary .pm::before { content: "−"; }
+details.league:not([open]) > summary .pm::before { content: "+"; }
+details.league:not([open]) > summary { opacity: 1; }
+details.league > summary { padding: 4px 0; }
+.day-head { flex-wrap: wrap; }
+.all-toggle { margin-left: auto; display: inline-flex; gap: 6px; }
+.all-toggle button { font-size: .68rem; font-weight: 600; color: var(--muted); background: var(--card); border: 1px solid var(--line);
+  border-radius: 999px; padding: 4px 9px; }

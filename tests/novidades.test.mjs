@@ -220,3 +220,12 @@ test('escudo: endereços alternativos (padrão da ESPN e bandeira das seleções
   assert.deepEqual(crestUrls({ id: '1', logo: 'https://x/a.png' }), ['https://x/a.png', 'https://a.espncdn.com/i/teamlogos/soccer/500/1.png']);
   assert.deepEqual(crestUrls({ name: 'Sem dados' }), []);
 });
+
+test('competição aberta/fechada: a escolha da pessoa manda; senão, poucos jogos abre', async () => {
+  const { leagueOpen } = await import('../www/js/logic.js');
+  assert.equal(leagueOpen(undefined, 3, false), true);    // poucos jogos: aberta
+  assert.equal(leagueOpen(undefined, 89, false), false);  // Taça de França com 89 jogos: fechada
+  assert.equal(leagueOpen(undefined, 89, true), true);    // mas abre se houver jogo ao vivo / do Santos
+  assert.equal(leagueOpen(false, 2, true), false);        // a pessoa fechou: fica fechada
+  assert.equal(leagueOpen(true, 89, false), true);        // a pessoa abriu: fica aberta
+});

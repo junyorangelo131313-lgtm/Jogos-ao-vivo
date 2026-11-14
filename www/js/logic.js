@@ -41,6 +41,16 @@ export function crestUrls(t, national = false) {
   return [...new Set(out)];
 }
 
+/**
+ * A competição aparece aberta ou fechada?
+ * Se a pessoa já abriu/fechou essa competição, vale a escolha dela (fica guardada).
+ * Senão: aberta se tiver poucos jogos, ou se houver jogo ao vivo / de um time favorito.
+ */
+export function leagueOpen(pref, count, priority, limit = 10) {
+  if (pref === true || pref === false) return pref;
+  return count <= limit || Boolean(priority);
+}
+
 /** Atualiza placar/minuto dos jogos antigos com os dados novos, sem perder os canais. */
 export function mergeLive(oldList, fresh) {
   const byId = new Map(fresh.map((m) => [m.id, m]));

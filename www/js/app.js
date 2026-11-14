@@ -3,7 +3,7 @@ import { addDays, dayKey, hhmm, shortDate, todayTomorrow, weekday } from './time
 import { fetchEspn } from './sources/espn.js';
 import { fetchFootballData } from './sources/footballdata.js';
 import { fetchChannels } from './channels.js';
-import { calendarDays, crestUrls, goalLines, isLiveish, leaguesByKickoff, mergeLive, needsResult, nextLiveDelay, sortMatches } from './logic.js';
+import { calendarDays, crestUrls, goalLines, leagueOpen, isLiveish, leaguesByKickoff, mergeLive, needsResult, nextLiveDelay, sortMatches } from './logic.js';
 import * as favorites from './favorites.js';
 import * as notify from './notify.js';
 import * as detalhes from './detalhes.js';
@@ -320,6 +320,19 @@ document.addEventListener('error', (e) => {
   }
 }, true);
 
+/* Competições abertas/fechadas: escolha guardada no telemóvel. */
+const OPEN_KEY = 'jogos-ao-vivo:abertos:v1';
+let openPrefs = (() => { try { return JSON.parse(localStorage.getItem(OPEN_KEY) || '{}') || {}; } catch { return {}; } })();
+function setOpenPref(key, open) {
+  openPrefs = { ...openPrefs, [key]: open };
+  try { localStorage.setItem(OPEN_KEY, JSON.stringify(openPrefs)); } catch { /* vale só nesta sessão */ }
+}
+
+/** Botões "Fechar todos / Abrir todos" de um dia. */
+function allToggle(day) {
+  return `<span class="all-toggle"><button type="button" data-all="close" data-day="${day}">− Fechar todos</button><button type="button" data-all="open" data-day="${day}">+ Abrir todos</button></span>`;
+}
+
 function leaguesOfDay(key, now, opts = {}) {
   const ofDay = state.matches.filter((m) => dayKey(new Date(m.start)) === key && (!opts.only || opts.only(m)));
   if (!ofDay.length) return `<p class="empty">${opts.emptyText || 'Sem jogos neste dia.'}</p>`;
@@ -329,12 +342,11 @@ function leaguesOfDay(key, now, opts = {}) {
     const list = sortMatches(ofDay.filter((m) => m.league === l.key));
     if (!list.length) continue;
     const rows = `<div class="mlist">${list.map((m) => row(m, now, opts)).join('')}</div>`;
-    if (opts.collapse) {
-      // Competições com muitos jogos (ex.: taças com divisões baixas) ficam fechadas;
-      // abrem sempre se houver jogo ao vivo ou de um time favorito.
-      const open = list.length <= COLLAPSE_OVER || list.some((m) => fav(m) || isLiveish(m, now));
-      html += `<details class="league" style="--c:${l.color}"${open ? ' open' : ''}>
-        <summary><span class="ldot"></span>${esc(l.name)} <small>${list.length} jogo${list.length > 1 ? 's' : ''}</small></summary>${rows}</details>`;
+    if (opts.collapse !== false) {
+      // Botão − / + em cada competição. A escolha fica guardada (ex.: fechar a Taça de França).
+      const open = leagueOpen(openPrefs[l.key], list.length, list.some((m) => fav(m) || isLiveish(m, now)), COLLAPSE_OVER);
+      html += `<details class="league" data-league-key="${l.key}" style="--c:${l.color}"${open ? ' open' : ''}>
+        <summary><span class="ldot"></span><span class="lsum">${esc(l.name)} <small>${list.length} jogo${list.length > 1 ? 's' : ''}</small></span><span class="pm" aria-hidden="true"></span></summary>${rows}</details>`;
     } else {
       html += `<section class="league" style="--c:${l.color}"><h3><span class="ldot"></span>${esc(l.name)}</h3>${rows}</section>`;
     }
@@ -368,17 +380,17 @@ function renderAoVivo(now) {
   } else {
     html += '<div class="card empty-card"><p>Nenhum jogo a decorrer agora.</p></div>';
   }
-  html += favBox(now);
   // Todos os jogos de todas as competições: hoje, amanhã e os resultados de ontem.
   const [today, tomorrow] = nearDays(now);
   const yesterday = addDays(today, -1);
-  html += `<h2 class="section-title">Hoje <small>${shortDate(today)}</small></h2>
-    ${leaguesOfDay(today, now, { collapse: true, emptyText: 'Sem jogos hoje.' })}
-    <h2 class="section-title">Amanhã <small>${shortDate(tomorrow)}</small></h2>
-    ${leaguesOfDay(tomorrow, now, { collapse: true, emptyText: 'Sem jogos amanhã.' })}
-    <h2 class="section-title">Ontem <small>${shortDate(yesterday)} · resultados</small></h2>
-    ${leaguesOfDay(yesterday, now, { collapse: true, showTbc: false, emptyText: 'Sem jogos ontem.' })}
-    <p class="note">Toque num campeonato para abrir ou fechar. Os que têm muitos jogos começam fechados.</p>`;
+  html += `<h2 class="section-title day-head">Jogos de hoje <small>${shortDate(today)}</small>${allToggle(today)}</h2>
+    ${leaguesOfDay(today, now, { emptyText: 'Sem jogos hoje.' })}
+    ${favBox(now)}
+    <h2 class="section-title day-head">Amanhã <small>${shortDate(tomorrow)}</small>${allToggle(tomorrow)}</h2>
+    ${leaguesOfDay(tomorrow, now, { emptyText: 'Sem jogos amanhã.' })}
+    <h2 class="section-title day-head">Ontem <small>${shortDate(yesterday)} · resultados</small>${allToggle(yesterday)}</h2>
+    ${leaguesOfDay(yesterday, now, { showTbc: false, emptyText: 'Sem jogos ontem.' })}
+    <p class="note">Toque no − para fechar uma competição e no + para abrir. A escolha fica guardada.</p>`;
   return html;
 }
 
@@ -526,7 +538,7 @@ function renderCalendario(now) {
   const near = [today, tomorrow].includes(selectedDay);
   return `
     <div class="chips" role="tablist" aria-label="Escolher dia">${chips}</div>
-    <h2 class="section-title">${esc(dayLabel(selectedDay, now))} <small>${shortDate(selectedDay)}</small></h2>
+    <h2 class="section-title day-head">${esc(dayLabel(selectedDay, now))} <small>${shortDate(selectedDay)}</small>${allToggle(selectedDay)}</h2>
     ${leaguesOfDay(selectedDay, now, { showTbc: near })}
     ${near ? '' : '<p class="note">Os canais de TV aparecem na véspera do jogo.</p>'}`;
 }
@@ -786,6 +798,21 @@ document.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () 
 }));
 
 $('#content').addEventListener('click', (e) => {
+  // − / + de uma competição: guarda a escolha (o app redesenha a tela a cada minuto).
+  const sum = e.target.closest('details.league > summary');
+  if (sum) {
+    const det = sum.parentElement;
+    setOpenPref(det.dataset.leagueKey, !det.open); // o navegador ainda não mudou o estado aqui
+    return;
+  }
+  const all = e.target.closest('[data-all]');
+  if (all) {
+    const open = all.dataset.all === 'open';
+    const keys = new Set(state.matches.filter((m) => dayKey(new Date(m.start)) === all.dataset.day).map((m) => m.league));
+    for (const k of keys) setOpenPref(k, open);
+    render();
+    return;
+  }
   if (e.target.closest('[data-close]')) { closeDetail(); return; }
   if (e.target.closest('[data-reload-detail]')) {
     const m = state.matches.find((x) => x.id === openMatch);

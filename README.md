@@ -237,3 +237,10 @@ Comandos: `npm ci`, `npm test`, `npx cap sync android`.
 - Fundo **vermelho-vinho escuro** (modo escuro) e cartões por jogo: **escudo e nome** de cada time, placar ao centro,
   estado (hora, minuto ao vivo ou "Fim"), nome completo de cada time por baixo do escudo, e estádio + canal em baixo.
 - Os escudos vêm da ESPN; se algum não carregar, aparece a sigla num círculo.
+
+### Abrir e fechar competições
+
+- Cada competição tem um botão **−** (fechar) / **+** (abrir), em todas as páginas (Hoje, Resultados, Calendário).
+- A escolha fica guardada no telemóvel: se fechar a Taça de França, ela continua fechada nos dias seguintes.
+- Em cada dia há **"− Fechar todos"** e **"+ Abrir todos"**.
+- O primeiro separador chama-se **Hoje**: AO VIVO, jogos de hoje, amanhã e resultados de ontem.
