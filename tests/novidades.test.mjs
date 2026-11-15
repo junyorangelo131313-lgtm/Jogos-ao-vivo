@@ -229,3 +229,18 @@ test('competição aberta/fechada: a escolha da pessoa manda; senão, poucos jog
   assert.equal(leagueOpen(false, 2, true), false);        // a pessoa fechou: fica fechada
   assert.equal(leagueOpen(true, 89, false), true);        // a pessoa abriu: fica aberta
 });
+
+test('Taça de França: só quartas, semifinais e final (fase vinda da ESPN)', async () => {
+  const { LEAGUES, keepMatch, isFinalRound } = await import('../www/js/leagues.js');
+  const cfr = LEAGUES.find((l) => l.key === 'cfr');
+  // Códigos reais da ESPN (sonda de 15/11/2026)
+  assert.equal(keepMatch(cfr, { round: 'seventh-round' }), false);
+  assert.equal(keepMatch(cfr, { round: 'round-of-16' }), false);
+  assert.equal(keepMatch(cfr, { round: 'quarterfinals' }), true);
+  assert.equal(keepMatch(cfr, { round: 'semifinals' }), true);
+  assert.equal(keepMatch(cfr, { round: 'final' }), true);
+  assert.equal(keepMatch(cfr, { round: '' }), true); // sem informação: não esconde
+  assert.equal(isFinalRound('round-of-64'), false);
+  // As outras taças não são filtradas
+  assert.equal(keepMatch(LEAGUES.find((l) => l.key === 'tpt'), { round: '4th-round' }), true);
+});

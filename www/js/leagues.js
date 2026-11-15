@@ -41,7 +41,7 @@ export const LEAGUES = [
   { key: 'fac', name: 'FA Cup (Inglaterra)', espn: 'eng.fa', fd: null, color: '#c084fc' },
   { key: 'cit', name: 'Taça de Itália', espn: 'ita.coppa_italia', fd: null, color: '#22d3ee' },
   { key: 'dfb', name: 'Taça da Alemanha', espn: 'ger.dfb_pokal', fd: null, color: '#f87171' },
-  { key: 'cfr', name: 'Taça de França', espn: 'fra.coupe_de_france', fd: null, color: '#818cf8' },
+  { key: 'cfr', name: 'Taça de França', espn: 'fra.coupe_de_france', fd: null, filter: 'finalRounds', color: '#818cf8' },
   { key: 'unl', name: 'Liga das Nações (UEFA)', espn: 'uefa.nations', national: true, fd: null, color: '#8b5cf6' },
   { key: 'eli', name: 'Eliminatórias (América do Sul)', espn: 'fifa.worldq.conmebol', national: true, fd: null, color: '#facc15' },
   { key: 'cam', name: 'Copa América', espn: 'conmebol.america', national: true, fd: null, color: '#0ea5e9' },
@@ -70,7 +70,13 @@ export function hasConmebolTeam(m) {
 }
 
 /** Aplica o filtro da competição (se tiver). */
+// Fases finais de uma taça, pelo código da fase que a ESPN manda (ex.: "quarterfinals", "semifinals", "final").
+export const isFinalRound = (round) => /quarter|semi|^final$/i.test(String(round || ''));
+
 export function keepMatch(league, m) {
   if (league.filter === 'conmebol') return hasConmebolTeam(m);
+  // Taças com muitos jogos de clubes amadores: só a partir das quartas de final.
+  // Se a ESPN não disser a fase, mostra (para não esconder jogos por engano).
+  if (league.filter === 'finalRounds') return !m.round || isFinalRound(m.round);
   return true;
 }

@@ -244,3 +244,8 @@ Comandos: `npm ci`, `npm test`, `npx cap sync android`.
 - A escolha fica guardada no telemóvel: se fechar a Taça de França, ela continua fechada nos dias seguintes.
 - Em cada dia há **"− Fechar todos"** e **"+ Abrir todos"**.
 - O primeiro separador chama-se **Hoje**: AO VIVO, jogos de hoje, amanhã e resultados de ontem.
+
+### Taça de França
+
+Mostra só **quartas de final, semifinais e final** (as rondas anteriores têm dezenas de jogos de clubes amadores
+que não passam na TV brasileira). A fase vem da ESPN; se um jogo vier sem fase, aparece na mesma.

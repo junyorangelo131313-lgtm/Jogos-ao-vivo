@@ -1,6 +1,7 @@
 // Guarda a agenda no próprio telemóvel, para abrir na hora e gastar poucos pedidos.
-// v3: obriga a buscar tudo de novo depois da atualização que trouxe os escudos.
-const KEY = 'jogos-ao-vivo:v3';
+// v4: obriga a buscar tudo de novo depois de uma atualização que muda os dados guardados
+// (v3: escudos; v4: fase das taças, para filtrar a Taça de França).
+const KEY = 'jogos-ao-vivo:v4';
 
 export function load() {
   try {

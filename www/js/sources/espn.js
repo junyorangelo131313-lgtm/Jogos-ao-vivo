@@ -84,6 +84,7 @@ export function parseEspn(data, league) {
       minute: state === 'live' ? (status.type?.shortDetail || status.displayClock || '') : '',
       goals: hasScore ? parseGoals(comp.details, home.team?.id, away.team?.id) : [],
       venue: comp.venue?.fullName || '',
+      round: ev.season?.slug || '',
       channels: [],
     });
   }
