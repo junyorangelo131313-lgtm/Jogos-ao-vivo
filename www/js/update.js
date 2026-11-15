@@ -17,25 +17,38 @@ function save(s) {
   try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* sem armazenamento */ }
 }
 
-/** Há uma versão mais nova do que a instalada? (e o utilizador não a dispensou) */
-export function shouldOffer(remote, current, dismissed) {
-  return Boolean(current) && remote > current && remote !== dismissed;
+export const SNOOZE_MS = 7 * 24 * 60 * 60 * 1000; // "Depois": esconde o aviso grande durante 7 dias
+
+/**
+ * Como avisar de uma versão nova:
+ *  'none'   – não há versão mais nova (ou é a versão de testes no navegador);
+ *  'banner' – aviso verde grande;
+ *  'quiet'  – só uma linha discreta no fundo (a pessoa tocou em "Depois" há menos de 7 dias,
+ *             mesmo que entretanto tenham saído outras versões).
+ */
+export function offerState(remote, current, snoozedAt = 0, now = Date.now()) {
+  if (!current || !(remote > current)) return 'none';
+  return snoozedAt && now - snoozedAt < SNOOZE_MS ? 'quiet' : 'banner';
 }
 
-/** Devolve { versionCode, notes } se houver versão nova para oferecer, senão null. */
+/** Devolve { versionCode, notes, mode } se houver versão nova, senão null. */
 export async function checkUpdate(force = false) {
   const s = load();
   const cur = currentVersion();
   if (!cur) return null; // versão de testes no navegador: sem aviso
-  if (!force && s.checkedAt && Date.now() - s.checkedAt < EVERY) {
-    return shouldOffer(s.latest || 0, cur, s.dismissed) ? { versionCode: s.latest, notes: s.notes || '' } : null;
+  let latest = s.latest || 0;
+  let notes = s.notes || '';
+  if (force || !s.checkedAt || Date.now() - s.checkedAt >= EVERY) {
+    const v = await getJson(`${VERSION_URL}?t=${Date.now()}`);
+    latest = Number(v?.versionCode) || 0;
+    notes = v?.notes || '';
+    save({ ...s, checkedAt: Date.now(), latest, notes });
   }
-  const v = await getJson(`${VERSION_URL}?t=${Date.now()}`);
-  const latest = Number(v?.versionCode) || 0;
-  save({ ...s, checkedAt: Date.now(), latest, notes: v?.notes || '' });
-  return shouldOffer(latest, cur, s.dismissed) ? { versionCode: latest, notes: v?.notes || '' } : null;
+  const mode = offerState(latest, cur, s.snoozedAt);
+  return mode === 'none' ? null : { versionCode: latest, notes, mode };
 }
 
-export function dismiss(versionCode) {
-  save({ ...load(), dismissed: versionCode });
+/** "Depois": esconde o aviso grande durante 7 dias. */
+export function dismiss() {
+  save({ ...load(), snoozedAt: Date.now() });
 }

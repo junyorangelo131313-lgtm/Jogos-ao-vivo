@@ -867,7 +867,9 @@ async function showUpdateBanner(force = false) {
   try { info = await update.checkUpdate(force); } catch (e) { console.warn('verificar versão', e); }
   const box = $('#update');
   if (!box) return;
-  if (!info) { box.hidden = true; box.innerHTML = ''; return; }
+  const quiet = $('#update-quiet');
+  if (quiet) quiet.hidden = !(info && info.mode === 'quiet');
+  if (!info || info.mode !== 'banner') { box.hidden = true; box.innerHTML = ''; return; }
   box.innerHTML = `
     <div class="update-text"><b>Há uma versão nova do app</b>
       <span>Versão ${info.versionCode} (tem a ${update.currentVersion()}). Instala por cima, sem perder nada.</span></div>
@@ -877,8 +879,9 @@ async function showUpdateBanner(force = false) {
     </div>`;
   box.hidden = false;
   box.querySelector('.update-later').addEventListener('click', () => {
-    update.dismiss(info.versionCode);
+    update.dismiss();
     box.hidden = true;
+    if (quiet) quiet.hidden = false;
   });
 }
 

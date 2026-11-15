@@ -184,12 +184,14 @@ test('resultados: pede o placar final de jogos que já acabaram', async () => {
 });
 
 test('aviso de versão nova', async () => {
-  const { shouldOffer } = await import('../www/js/update.js');
-  assert.ok(shouldOffer(20, 17, undefined));
-  assert.ok(!shouldOffer(17, 17, undefined));   // já é a mais recente
-  assert.ok(!shouldOffer(20, 17, 20));          // utilizador tocou em "Depois" nesta versão
-  assert.ok(shouldOffer(21, 17, 20));           // saiu outra mais nova: volta a avisar
-  assert.ok(!shouldOffer(20, 0, undefined));    // sem versão (testes no navegador)
+  const { offerState, SNOOZE_MS } = await import('../www/js/update.js');
+  const now = Date.parse('2026-11-15T19:00:00Z');
+  assert.equal(offerState(20, 17, 0, now), 'banner');                 // versão nova: aviso grande
+  assert.equal(offerState(17, 17, 0, now), 'none');                   // já é a mais recente
+  assert.equal(offerState(20, 17, now - 3600e3, now), 'quiet');       // tocou em "Depois" há 1 hora
+  assert.equal(offerState(25, 17, now - 3 * 86400e3, now), 'quiet');  // saíram mais versões: continua discreto
+  assert.equal(offerState(25, 17, now - SNOOZE_MS - 1, now), 'banner'); // passados 7 dias: volta o aviso
+  assert.equal(offerState(20, 0, 0, now), 'none');                    // sem versão (testes no navegador)
 });
 
 test('classificação: lê a tabela da ESPN', async () => {

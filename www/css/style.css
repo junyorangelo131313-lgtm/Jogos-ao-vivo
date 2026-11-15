@@ -402,3 +402,7 @@ details.league > summary { padding: 4px 0; }
 .all-toggle { margin-left: auto; display: inline-flex; gap: 6px; }
 .all-toggle button { font-size: .68rem; font-weight: 600; color: var(--muted); background: var(--card); border: 1px solid var(--line);
   border-radius: 999px; padding: 4px 9px; }
+
+/* Aviso discreto de versão nova (depois de "Depois") */
+.update-quiet { margin: 2px 0 8px; font-size: .75rem; color: var(--muted); }
+.update-quiet a { color: var(--accent); font-weight: 700; }
