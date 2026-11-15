@@ -107,6 +107,7 @@ if (!sample) {
   try {
     const d = await fetchDetails(sample, LEAGUES.find((l) => l.key === sample.league), true);
     log(`- ✅ ${sample.home.name} x ${sample.away.name}: ${d.events.length} lance(s), ${d.stats.length} estatística(s)${d.venue ? `, ${d.venue}` : ''}`);
+    log(`- Escalações: ${d.lineups.length} equipa(s)${d.lineups[0] ? ` (ex.: ${d.lineups[0].formation || 'sem esquema'}, ${d.lineups[0].starters.length} titulares, ${d.lineups[0].subs.length} suplentes)` : ''}`);
     if (sample.score && sample.score.home + sample.score.away > 0 && !d.events.some((e) => ['goal', 'pen', 'own'].includes(e.kind))) {
       problems.push('Os detalhes do jogo vieram sem golos num jogo com golos (a ESPN pode ter mudado o formato).');
     }

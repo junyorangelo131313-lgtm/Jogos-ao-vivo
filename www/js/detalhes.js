@@ -68,8 +68,28 @@ export function parseSummary(s) {
   const city = v?.address?.city;
   const ref = (s?.gameInfo?.officials || [])[0]?.displayName || '';
   const st = comp.status || {};
+  // Escalações (a ESPN manda-as cerca de 1 hora antes do jogo): esquema, titulares e suplentes.
+  const lineups = (s?.rosters || []).map((r) => {
+    const ps = (r.roster || []).map((p) => ({
+      n: String(p.jersey ?? ''),
+      name: p.athlete?.displayName || p.athlete?.shortName || '?',
+      pos: p.position?.abbreviation || '',
+      starter: Boolean(p.starter),
+      place: Number(p.formationPlace) || 99,
+      subIn: Boolean(p.subbedIn),
+      subOut: Boolean(p.subbedOut),
+    }));
+    return {
+      side: r.homeAway === 'home' || r.homeAway === 'away' ? r.homeAway : side(r.team?.id),
+      formation: r.formation || '',
+      starters: ps.filter((p) => p.starter).sort((a, b) => a.place - b.place),
+      subs: ps.filter((p) => !p.starter),
+    };
+  }).filter((x) => x.starters.length);
+
   return {
     events,
+    lineups,
     stats,
     venue: v?.fullName ? `${v.fullName}${city ? `, ${city}` : ''}` : '',
     referee: ref,
@@ -84,7 +104,8 @@ export function parseSummary(s) {
 export async function fetchDetails(m, league, force = false) {
   const id = espnEventId(m);
   if (!id || !league?.espn) throw new Error('Detalhes indisponíveis para este jogo.');
-  const ttl = m.state === 'live' ? 2 * 60 * 1000 : 12 * 60 * 60 * 1000;
+  // Antes do jogo, a escalação pode sair a qualquer momento: volta a pedir de 10 em 10 minutos.
+  const ttl = m.state === 'live' ? 2 * 60 * 1000 : m.state === 'pre' ? 10 * 60 * 1000 : 12 * 60 * 60 * 1000;
   const c = cache.get(m.id);
   if (!force && c && Date.now() - c.at < ttl) return c.data;
   const data = parseSummary(await espnJson(`${PATH}/${league.espn}/summary?event=${encodeURIComponent(id)}&lang=pt&region=br`));

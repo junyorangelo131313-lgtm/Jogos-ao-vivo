@@ -406,3 +406,17 @@ details.league > summary { padding: 4px 0; }
 /* Aviso discreto de versão nova (depois de "Depois") */
 .update-quiet { margin: 2px 0 8px; font-size: .75rem; color: var(--muted); }
 .update-quiet a { color: var(--accent); font-weight: 700; }
+
+/* ---------- Escalações ---------- */
+.lineups { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 10px 12px; }
+.lu-col h4 { margin: 0 0 2px; font-size: .85rem; }
+.lu-form { font-size: .72rem; color: var(--accent); font-weight: 700; margin-bottom: 4px; }
+.lu-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.lu-list li { display: flex; align-items: baseline; gap: 6px; font-size: .78rem; min-width: 0; }
+.lu-n { min-width: 1.6em; text-align: right; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.lu-name { overflow-wrap: anywhere; }
+.lu-list small { color: var(--muted); font-size: .64rem; }
+.lu-out { color: var(--live); font-weight: 700; }
+.lu-in { color: #22c55e; font-weight: 700; }
+.lu-subs { margin-top: 6px; }
+.lu-subs summary { cursor: pointer; font-size: .74rem; color: var(--muted); font-weight: 600; margin-bottom: 4px; }

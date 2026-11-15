@@ -14,6 +14,7 @@ import * as standings from './standings.js';
 const { zoneRange } = standings;
 
 const CAL_DAYS = 14;
+const LINEUP_BEFORE = 90 * 60 * 1000;      // detalhes antes do jogo: só a partir de 1h30 antes (escalações)
 const COLLAPSE_OVER = 10;                  // mais jogos do que isto num dia: a competição começa fechada                       // calendário: hoje + 13 dias
 const FAR_MAX_AGE = 24 * 60 * 60 * 1000;       // dias distantes do calendário: uma vez por dia
 const AGENDA_MAX_AGE = 4 * 60 * 60 * 1000; // agenda: no máximo ~6 vezes por dia
@@ -634,7 +635,9 @@ async function loadDetail(m, force = false) {
 function renderDetail(m, now) {
   const l = leagueByKey(m.league);
   const d = detalhes.cachedDetails(m);
-  if (!d && !detailBusy && !detailError && m.state !== 'pre') loadDetail(m);
+  // Antes do jogo só vale a pena pedir perto da hora (é quando a ESPN publica a escalação).
+  const soon = Date.parse(m.start) - now < LINEUP_BEFORE;
+  if (!d && !detailBusy && !detailError && (m.state !== 'pre' || soon)) loadDetail(m);
   const live = isLiveish(m, now);
   const score = d?.score && m.state !== 'pre' ? d.score : m.score;
   const clock = live ? (d?.clock || m.minute || 'AO VIVO') : m.state === 'done' ? 'Terminado' : m.state === 'off' ? 'Adiado / cancelado' : '';
@@ -652,7 +655,11 @@ function renderDetail(m, now) {
     </article>`;
 
   if (m.state === 'pre') {
-    html += `<div class="card empty-card"><p>O jogo ainda não começou. Os golos e cartões aparecem aqui durante o jogo.</p></div>`;
+    if (d?.lineups?.length) html += lineupsHtml(d, m);
+    else {
+      html += `<div class="card empty-card"><p>${detailBusy ? 'A carregar…' : 'As escalações aparecem aqui cerca de 1 hora antes do jogo.'}</p></div>`;
+    }
+    html += `<p class="note">Os golos e cartões aparecem aqui durante o jogo.</p>`;
   } else if (!d) {
     html += `<div class="card empty-card"><p>${detailBusy ? 'A carregar os detalhes…' : esc(detailError || 'Sem detalhes.')}</p></div>`;
   } else {
@@ -678,11 +685,26 @@ function renderDetail(m, now) {
             <div class="st-bar"><i style="width:${pct}%"></i></div></div>`;
         }).join('')}</div>`;
     }
+    if (d.lineups?.length) html += lineupsHtml(d, m);
     const info = [d.venue && `🏟️ ${d.venue}`, d.referee && `Árbitro: ${d.referee}`, d.attendance && `Público: ${d.attendance.toLocaleString('pt-PT')}`].filter(Boolean);
     if (info.length) html += `<p class="note">${info.map(esc).join(' · ')}</p>`;
     html += `<p class="note">Dados: ESPN. <button type="button" class="link" data-reload-detail>Atualizar detalhes</button></p>`;
   }
   return html;
+}
+
+/** Escalações das duas equipas, lado a lado: esquema, titulares e (ao tocar) suplentes. */
+function lineupsHtml(d, m) {
+  const col = (side) => {
+    const lu = d.lineups.find((x) => x.side === side);
+    const team = side === 'home' ? m.home : m.away;
+    if (!lu) return `<div class="lu-col"><h4>${esc(team.name)}</h4><p class="hint">Sem escalação.</p></div>`;
+    const p = (x) => `<li><span class="lu-n">${esc(x.n)}</span><span class="lu-name">${esc(x.name)}</span>${x.pos ? `<small>${esc(x.pos)}</small>` : ''}${x.subOut ? '<span class="lu-out" title="Substituído">↓</span>' : ''}${x.subIn ? '<span class="lu-in" title="Entrou">↑</span>' : ''}</li>`;
+    return `<div class="lu-col"><h4>${esc(team.name)}</h4>${lu.formation ? `<div class="lu-form">${esc(lu.formation)}</div>` : ''}
+      <ol class="lu-list">${lu.starters.map(p).join('')}</ol>
+      ${lu.subs.length ? `<details class="lu-subs"><summary>Suplentes (${lu.subs.length})</summary><ol class="lu-list">${lu.subs.map(p).join('')}</ol></details>` : ''}</div>`;
+  };
+  return `<h2 class="section-title">Escalações</h2><div class="card lineups">${col('home')}${col('away')}</div>`;
 }
 
 function openDetail(id) {

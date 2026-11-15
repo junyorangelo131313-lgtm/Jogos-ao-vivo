@@ -249,3 +249,9 @@ Comandos: `npm ci`, `npm test`, `npx cap sync android`.
 
 Mostra só **quartas de final, semifinais e final** (as rondas anteriores têm dezenas de jogos de clubes amadores
 que não passam na TV brasileira). A fase vem da ESPN; se um jogo vier sem fase, aparece na mesma.
+
+### Escalações
+
+Na tela de detalhes de cada jogo (toque no jogo): esquema tático, os 11 titulares com o número e a posição,
+e os suplentes (toque em "Suplentes"). Setas: ↓ saiu, ↑ entrou. A ESPN publica a escalação cerca de 1 hora
+antes do jogo; antes disso aparece um aviso.

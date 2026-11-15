@@ -244,3 +244,28 @@ test('Taça de França: só quartas, semifinais e final (fase vinda da ESPN)', a
   // As outras taças não são filtradas
   assert.equal(keepMatch(LEAGUES.find((l) => l.key === 'tpt'), { round: '4th-round' }), true);
 });
+
+test('escalações: esquema, titulares por ordem e suplentes (formato real da ESPN)', async () => {
+  const { parseSummary } = await import('../www/js/detalhes.js');
+  // Extrato real (Palmeiras x Remo, 05/11/2026), reduzido.
+  const d = parseSummary({
+    header: { competitions: [{ competitors: [
+      { homeAway: 'home', team: { id: '2029' } }, { homeAway: 'away', team: { id: '4936' } }] }] },
+    rosters: [
+      { homeAway: 'home', formation: '3-4-2-1', team: { id: '2029', displayName: 'Palmeiras' }, roster: [
+        { starter: true, jersey: '9', formationPlace: '11', position: { abbreviation: 'A' }, athlete: { displayName: 'Vitor Roque' }, subbedOut: true },
+        { starter: true, jersey: '1', formationPlace: '1', position: { abbreviation: 'G' }, athlete: { displayName: 'Carlos Miguel' } },
+        { starter: false, jersey: '32', athlete: { displayName: 'Emiliano Martínez' }, subbedIn: true },
+      ] },
+      { homeAway: 'away', formation: '5-4-1', team: { id: '4936', displayName: 'Remo' }, roster: [
+        { starter: true, jersey: '88', athlete: { displayName: 'Marcelo Rangel' } },
+      ] },
+    ],
+  });
+  assert.equal(d.lineups.length, 2);
+  const pal = d.lineups.find((x) => x.side === 'home');
+  assert.equal(pal.formation, '3-4-2-1');
+  assert.deepEqual(pal.starters.map((p) => [p.n, p.name, p.pos, p.subOut]), [['1', 'Carlos Miguel', 'G', false], ['9', 'Vitor Roque', 'A', true]]);
+  assert.deepEqual(pal.subs.map((p) => [p.name, p.subIn]), [['Emiliano Martínez', true]]);
+  assert.deepEqual(parseSummary({}).lineups, []);
+});
